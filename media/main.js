@@ -1057,7 +1057,7 @@
 
   // ------------------------------------------------------------------ integrations
   // Integration UIs (media/integrations/<id>.js) are loaded before this file and
-  // queue themselves in window.dbtFlowPlugins as { id, init(api) }. Each gets the
+  // queue themselves in window.nodevizPlugins as { id, init(api) }. Each gets the
   // small API below. Every hook call is wrapped, so a broken integration UI is
   // logged to the console and the canvas carries on without it.
 
@@ -1119,7 +1119,7 @@
   }
 
   function loadPlugins() {
-    for (const p of Array.isArray(window.dbtFlowPlugins) ? window.dbtFlowPlugins : []) {
+    for (const p of Array.isArray(window.nodevizPlugins) ? window.nodevizPlugins : []) {
       try {
         if (p && typeof p.id === 'string' && typeof p.init === 'function') p.init(pluginApi(p.id));
       } catch (err) {

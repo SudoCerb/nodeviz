@@ -29,9 +29,58 @@ function integrationUis(extensionPath) {
   }
 }
 
-const PANEL_TYPE = 'dbtFlow.panel';
+const PANEL_TYPE = 'nodeviz.panel';
 const STARTUP_DELAY_MS = 500;
 const FOLDER_RE = /^[\w-]+(\/[\w-]+)*$/;
+
+// ------------------------------------------------------------ settings
+
+// Settings were called dbtFlow.* up to 0.3.0. Old values still count.
+const SECTION = 'nodeviz';
+const LEGACY_SECTION = 'dbtFlow';
+const SETTING_KEYS = [
+  'openOnStartup', 'projectPath', 'confirmFileEdits', 'openCreatedFile',
+  'dbt.executable', 'dbt.target', 'dbt.envFile',
+  'integrations.dagtracer.enabled', 'integrations.dagtracer.executable', 'integrations.dagtracer.timeoutSeconds',
+];
+
+/** The value the user set for `key` in `cfg` (folder, workspace or user settings), if any. */
+function userValue(cfg, key) {
+  const i = typeof cfg.inspect === 'function' ? cfg.inspect(key) : null;
+  if (!i) return { set: false };
+  for (const v of [i.workspaceFolderValue, i.workspaceValue, i.globalValue]) {
+    if (v !== undefined) return { set: true, value: v };
+  }
+  return { set: false };
+}
+
+/**
+ * NodeViz settings: a nodeviz.* value the user set wins, then an old dbtFlow.*
+ * value, then the default from package.json.
+ */
+function settings() {
+  const now = vscode.workspace.getConfiguration(SECTION);
+  const old = vscode.workspace.getConfiguration(LEGACY_SECTION);
+  return {
+    get(key) {
+      if (!userValue(now, key).set) {
+        const o = userValue(old, key);
+        if (o.set) return o.value;
+      }
+      return now.get(key);
+    },
+    update: (key, value, target) => now.update(key, value, target),
+  };
+}
+
+/** Old dbtFlow.* settings the user still has, e.g. ['dbtFlow.dbt.executable']. */
+function legacySettingsInUse() {
+  const old = vscode.workspace.getConfiguration(LEGACY_SECTION);
+  return SETTING_KEYS.filter((k) => userValue(old, k).set).map((k) => `${LEGACY_SECTION}.${k}`);
+}
+
+const affectsSetting = (e, key) =>
+  e.affectsConfiguration(`${SECTION}.${key}`) || e.affectsConfiguration(`${LEGACY_SECTION}.${key}`);
 
 class Controller {
   constructor(context) {
@@ -60,14 +109,15 @@ class Controller {
     }
     let root = forceRoot;
     if (!root) {
-      const configured = vscode.workspace.getConfiguration('dbtFlow').get('projectPath');
+      const configured = settings().get('projectPath');
       if (configured) {
         root = path.isAbsolute(configured) ? configured : path.join(folders[0], configured);
       }
     }
     if (!root) {
       const roots = findProjectRoots(folders, this.io);
-      const remembered = this.context.workspaceState.get('dbtFlow.root');
+      const ws = this.context.workspaceState;
+      const remembered = ws.get('nodeviz.root') || ws.get('dbtFlow.root');
       root = roots.includes(remembered) ? remembered : roots[0] || folders[0];
       this.roots = roots;
     }
@@ -88,7 +138,7 @@ class Controller {
       { placeHolder: 'Which dbt project should NodeViz show?' }
     );
     if (!pick) return;
-    await this.context.workspaceState.update('dbtFlow.root', pick.root);
+    await this.context.workspaceState.update('nodeviz.root', pick.root);
     this.loadProject(pick.root);
     this.broadcast();
   }
@@ -207,7 +257,7 @@ ${uiJs}<script nonce="${nonce}" src="${js}"></script>
           if (/^[a-z][a-z0-9-]*\/result$/.test(msg.type)) this.integrationResults.set(msg.type, msg);
           for (const s of this.surfaces) s.webview.postMessage(msg);
         },
-        setting: (id, key) => vscode.workspace.getConfiguration('dbtFlow').get(`integrations.${id}.${key}`),
+        setting: (id, key) => settings().get(`integrations.${id}.${key}`),
         ask: (o) =>
           vscode.window.showInputBox({ prompt: o.prompt, placeHolder: o.placeHolder, value: o.value, validateInput: o.validate }),
         pick: (o) => this.pickWithTyping(o),
@@ -442,7 +492,7 @@ ${uiJs}<script nonce="${nonce}" src="${js}"></script>
       case 'createFile': {
         const r = m.createFiles([msg.id]);
         this.report(r, `Created ${msg.id}.sql`);
-        if (r.ok && vscode.workspace.getConfiguration('dbtFlow').get('openCreatedFile')) {
+        if (r.ok && settings().get('openCreatedFile')) {
           this.openFile(msg.id, surface);
         }
         return;
@@ -472,7 +522,7 @@ ${uiJs}<script nonce="${nonce}" src="${js}"></script>
     if (!m || !m.cfg) return;
     const node = id ? m.nodes.get(id) : null;
     if (id && !node) return;
-    const config = vscode.workspace.getConfiguration('dbtFlow');
+    const config = settings();
     const plan = dbtrun.planDbt({
       command,
       node: node && { id: node.id, name: node.name, kind: node.kind },
@@ -519,7 +569,7 @@ ${uiJs}<script nonce="${nonce}" src="${js}"></script>
     const m = this.model;
     const plan = m.planConnect(from, to);
     if (!plan.ok) return this.report(plan);
-    const config = vscode.workspace.getConfiguration('dbtFlow');
+    const config = settings();
     if (plan.fileEdit && config.get('confirmFileEdits')) {
       const expr = plan.from.kind === 'source'
         ? `{{ source('${plan.from.source}', '${plan.from.table}') }}`
@@ -539,7 +589,7 @@ ${uiJs}<script nonce="${nonce}" src="${js}"></script>
 
   /** Asks before rewriting other files when refs point at the renamed model. */
   async confirmRefEdits(question, files) {
-    const config = vscode.workspace.getConfiguration('dbtFlow');
+    const config = settings();
     if (!files.length || !config.get('confirmFileEdits')) return true;
     const list = files.slice(0, 8).join('\n') + (files.length > 8 ? `\n…and ${files.length - 8} more` : '');
     const choice = await vscode.window.showInformationMessage(
@@ -635,7 +685,7 @@ ${uiJs}<script nonce="${nonce}" src="${js}"></script>
   /**
    * A model file was renamed in Explorer: keep its box in place and update the
    * refs to it, asking the same way as a rename on the canvas does (a dialog,
-   * or no question at all when dbtFlow.confirmFileEdits is off).
+   * or no question at all when nodeviz.confirmFileEdits is off).
    */
   async onFilesRenamed(files) {
     const m = this.model;
@@ -728,24 +778,24 @@ function activate(context) {
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
   status.text = '$(type-hierarchy-sub) NodeViz';
   status.tooltip = 'Open the NodeViz canvas';
-  status.command = 'dbtFlow.openPanel';
+  status.command = 'nodeviz.openPanel';
   status.show();
 
   context.subscriptions.push(
     status,
-    vscode.commands.registerCommand('dbtFlow.openPanel', () => ctl.openPanel()),
-    vscode.commands.registerCommand('dbtFlow.refresh', () => {
+    vscode.commands.registerCommand('nodeviz.openPanel', () => ctl.openPanel()),
+    vscode.commands.registerCommand('nodeviz.refresh', () => {
       ctl.loadProject(ctl.model ? ctl.model.cfg.root : undefined);
       ctl.broadcast();
     }),
-    vscode.commands.registerCommand('dbtFlow.undo', () => ctl.handle({ type: 'undo' })),
-    vscode.commands.registerCommand('dbtFlow.redo', () => ctl.handle({ type: 'redo' })),
-    vscode.commands.registerCommand('dbtFlow.tidy', () => ctl.handle({ type: 'tidy' })),
-    vscode.commands.registerCommand('dbtFlow.createAll', () => ctl.handle({ type: 'createAll' })),
-    vscode.commands.registerCommand('dbtFlow.selectProject', () => ctl.selectProject()),
-    vscode.commands.registerCommand('dbtFlow.checkIntegrations', () => ctl.checkIntegrations()),
-    vscode.commands.registerCommand('dbtFlow.traceColumnAtCursor', () => ctl.traceColumnAtCursor()),
-    vscode.commands.registerCommand('dbtFlow.runDbt', () => ctl.pickDbtCommand()),
+    vscode.commands.registerCommand('nodeviz.undo', () => ctl.handle({ type: 'undo' })),
+    vscode.commands.registerCommand('nodeviz.redo', () => ctl.handle({ type: 'redo' })),
+    vscode.commands.registerCommand('nodeviz.tidy', () => ctl.handle({ type: 'tidy' })),
+    vscode.commands.registerCommand('nodeviz.createAll', () => ctl.handle({ type: 'createAll' })),
+    vscode.commands.registerCommand('nodeviz.selectProject', () => ctl.selectProject()),
+    vscode.commands.registerCommand('nodeviz.checkIntegrations', () => ctl.checkIntegrations()),
+    vscode.commands.registerCommand('nodeviz.traceColumnAtCursor', () => ctl.traceColumnAtCursor()),
+    vscode.commands.registerCommand('nodeviz.runDbt', () => ctl.pickDbtCommand()),
     { dispose: () => ctl.integrations && ctl.integrations.dispose() },
     vscode.window.onDidCloseTerminal
       ? vscode.window.onDidCloseTerminal((t) => {
@@ -766,7 +816,7 @@ function activate(context) {
       ctl.broadcast();
     }),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('dbtFlow.projectPath')) {
+      if (affectsSetting(e, 'projectPath')) {
         ctl.loadProject();
         ctl.broadcast();
       }
@@ -778,7 +828,7 @@ function activate(context) {
   if (vscode.workspace.onDidChangeConfiguration) {
     context.subscriptions.push(
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration('dbtFlow.integrations') && ctl.integrations) ctl.integrations.recheck();
+        if (affectsSetting(e, 'integrations') && ctl.integrations) ctl.integrations.recheck();
       })
     );
   }
@@ -788,21 +838,36 @@ function activate(context) {
   watcher.onDidCreate(onChange);
   watcher.onDidChange(onChange);
   watcher.onDidDelete(onChange);
-  const stateWatcher = vscode.workspace.createFileSystemWatcher('**/.dbtflow.json');
+  const stateWatcher = vscode.workspace.createFileSystemWatcher('**/{.nodeviz.json,.dbtflow.json}');
   const onState = () => ctl.scheduleRefresh(true);
   stateWatcher.onDidChange(onState);
   stateWatcher.onDidCreate(onState);
   context.subscriptions.push(watcher, stateWatcher);
 
   // Open next to the code when VS Code starts, after editors have been restored.
-  if (vscode.workspace.getConfiguration('dbtFlow').get('openOnStartup')) {
+  if (settings().get('openOnStartup')) {
     const timer = setTimeout(() => {
       if (!ctl.panel) ctl.openPanel({ preserveFocus: true });
     }, STARTUP_DELAY_MS);
     context.subscriptions.push({ dispose: () => clearTimeout(timer) });
   }
+
+  noticeLegacySettings(context);
+}
+
+/** Once per machine: say that dbtFlow.* settings are now nodeviz.* (the old ones keep working). */
+function noticeLegacySettings(context) {
+  const state = context.globalState;
+  if (!state || state.get('nodeviz.legacySettingsNotice')) return;
+  const old = legacySettingsInUse();
+  if (!old.length) return;
+  state.update('nodeviz.legacySettingsNotice', true);
+  const example = old[0].replace(`${LEGACY_SECTION}.`, `${SECTION}.`);
+  vscode.window.showInformationMessage(
+    `NodeViz settings are now called nodeviz.* instead of dbtFlow.* (e.g. ${example}). Your old settings still work; rename them when it suits you.`
+  );
 }
 
 function deactivate() {}
 
-module.exports = { activate, deactivate };
+module.exports = { activate, deactivate, settings };

@@ -11,7 +11,7 @@ const { parseModel, readPathList } = require('../src/parser');
 const { insertDependency, generateModelSql } = require('../src/sqlgen');
 
 function fixture(files) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dbtflow-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nodeviz-'));
   for (const [rel, text] of Object.entries(files)) {
     const abs = path.join(root, rel);
     fs.mkdirSync(path.dirname(abs), { recursive: true });
@@ -96,7 +96,7 @@ test('reads an existing project: model folder fallback, sources, seeds, missing 
   assert.ok(byId['source:shop.orders'].x < byId.stg_orders.x);
   assert.ok(byId.stg_orders.x < byId.fct_orders.x);
   // Opening the view must not write anything to the repo.
-  assert.equal(fs.existsSync(path.join(root, '.dbtflow.json')), false);
+  assert.equal(fs.existsSync(path.join(root, '.nodeviz.json')), false);
 });
 
 test('connect between existing files writes a ref, and undo restores the file', () => {
@@ -145,6 +145,30 @@ test('old .dbtflow.json with lock "home" spots still loads', () => {
   m.open(root);
   const n = m.getView().nodes.find((x) => x.id === 'fct_orders');
   assert.deepEqual([n.x, n.y, n.home], [5, 6, undefined]);
+});
+
+test('state moves from .dbtflow.json to .nodeviz.json on the first save', () => {
+  const root = fixture({
+    ...PROJECT,
+    '.dbtflow.json': JSON.stringify({ version: 1, direction: 'TB', positions: { fct_orders: { x: 5, y: 6 } }, planned: {}, plannedEdges: [] }),
+  });
+  const m = new FlowModel(createNodeIO());
+  m.open(root);
+  assert.equal(m.direction(), 'TB');
+  assert.equal(m.stateChangedOnDisk(), false);
+  // Only reading: the old file stays where it is.
+  assert.ok(fs.existsSync(path.join(root, '.dbtflow.json')));
+  assert.ok(!fs.existsSync(path.join(root, '.nodeviz.json')));
+  assert.ok(m.moveNode('stg_orders', 10, 20).ok);
+  assert.ok(!fs.existsSync(path.join(root, '.dbtflow.json')), 'old file is gone');
+  const state = JSON.parse(read(root, '.nodeviz.json'));
+  assert.deepEqual([state.direction, state.positions.fct_orders.x, state.positions.stg_orders.x], ['TB', 5, 10]);
+  assert.equal(m.stateChangedOnDisk(), false);
+  // .nodeviz.json wins when both exist (e.g. a teammate still on 0.3.0 pushed the old one).
+  fs.writeFileSync(path.join(root, '.dbtflow.json'), JSON.stringify({ version: 1, direction: 'LR', positions: {} }));
+  const again = new FlowModel(createNodeIO());
+  again.open(root);
+  assert.equal(again.direction(), 'TB');
 });
 
 test('rename a model from the canvas: file, refs and position follow; one undo reverts all', () => {
@@ -267,7 +291,7 @@ test('sync with files: an emptied canvas gets every model back, laid out left to
   };
   const hidden = { source: 'missing', test: 'missing', source1: 'model', source2: 'model', source3: 'model',
     source4: 'model', prep1: 'model', prep2: 'model', mart: 'model' };
-  files['.dbtflow.json'] = JSON.stringify({ version: 1, positions: {}, planned: {}, plannedEdges: [], hidden });
+  files['.nodeviz.json'] = JSON.stringify({ version: 1, positions: {}, planned: {}, plannedEdges: [], hidden });
   const root = fixture(files);
   const m = new FlowModel(createNodeIO());
   m.open(root);
@@ -326,7 +350,7 @@ test('flow direction: top to bottom puts downstream below, is saved, and undo sw
   assert.ok(at('source:shop.orders').y < at('stg_orders').y, 'sources above staging');
   assert.ok(at('stg_orders').y < at('fct_orders').y, 'staging above marts');
   assert.equal(at('stg_orders').y, at('stg_customers').y, 'one layer per row');
-  assert.equal(JSON.parse(read(root, '.dbtflow.json')).direction, 'TB');
+  assert.equal(JSON.parse(read(root, '.nodeviz.json')).direction, 'TB');
   // A reload keeps the direction.
   const again = new FlowModel(createNodeIO());
   again.open(root);
@@ -395,7 +419,7 @@ test('empty project: plan boxes, connect, create all files', () => {
   assert.ok(m.undo().ok);
   assert.equal(fs.existsSync(path.join(root, 'models/marts/fct_orders.sql')), false);
   assert.equal(m.getView().plannedCount, 3);
-  const state = JSON.parse(read(root, '.dbtflow.json'));
+  const state = JSON.parse(read(root, '.nodeviz.json'));
   assert.equal(state.plannedEdges.length, 2);
 });
 
@@ -410,7 +434,7 @@ test('creating a planned upstream adds its ref into an existing downstream file'
   assert.doesNotMatch(read(root, 'model/marts/fct_orders.sql'), /stg_payments/);
   assert.ok(m.createFiles(['stg_payments']).ok);
   assert.match(read(root, 'model/marts/fct_orders.sql'), /ref\('stg_payments'\)/);
-  assert.equal(JSON.parse(read(root, '.dbtflow.json')).plannedEdges.length, 0);
+  assert.equal(JSON.parse(read(root, '.nodeviz.json')).plannedEdges.length, 0);
 });
 
 test('undo refuses to overwrite a file edited by hand afterwards', () => {

@@ -5,7 +5,9 @@ const { readConfig, scanProject } = require('./project');
 const { generateModelSql, insertDependency, removeImportCte } = require('./sqlgen');
 const { layeredLayout, placeNew } = require('./layout');
 
-const STATE_FILE = '.dbtflow.json';
+const STATE_FILE = '.nodeviz.json';
+// Name used up to 0.3.0. Still read; moved to STATE_FILE the first time the canvas saves.
+const LEGACY_STATE_FILE = '.dbtflow.json';
 const NAME_RE = /^[a-z_][a-z0-9_]*$/;
 const MAX_HISTORY = 200;
 const REAL_KINDS = new Set(['model', 'seed', 'snapshot', 'source']);
@@ -45,7 +47,14 @@ class FlowModel {
   open(root) {
     this.cfg = readConfig(root, this.io);
     this.statePath = path.join(root, STATE_FILE);
-    const raw = this.io.readText(this.statePath);
+    // The file the state was read from: the old .dbtflow.json until the first save.
+    this.readPath = this.statePath;
+    let raw = this.io.readText(this.statePath);
+    if (raw === null) {
+      const legacy = path.join(root, LEGACY_STATE_FILE);
+      raw = this.io.readText(legacy);
+      if (raw !== null) this.readPath = legacy;
+    }
     this.lastSavedText = raw;
     this.loadError = null;
     this.state = emptyState();
@@ -53,7 +62,7 @@ class FlowModel {
       try {
         this.state = Object.assign(emptyState(), JSON.parse(raw));
       } catch (e) {
-        this.loadError = `${STATE_FILE} could not be read (${e.message}). Starting with a fresh layout.`;
+        this.loadError = `${path.basename(this.readPath)} could not be read (${e.message}). Starting with a fresh layout.`;
       }
     }
     // Files from 0.2 may carry "home" spots from the old lock mode; boxes now move freely.
@@ -212,11 +221,16 @@ class FlowModel {
     }
     this.lastSavedText = JSON.stringify(out, null, 2) + '\n';
     this.io.writeText(this.statePath, this.lastSavedText);
+    // Moving from the old .dbtflow.json: one state file, not two that drift apart.
+    if (this.readPath !== this.statePath) {
+      if (this.io.exists(this.readPath)) this.io.remove(this.readPath);
+      this.readPath = this.statePath;
+    }
   }
 
-  /** True when .dbtflow.json on disk differs from what we last wrote (e.g. after git pull). */
+  /** True when the state file on disk differs from what we last wrote (e.g. after git pull). */
   stateChangedOnDisk() {
-    const raw = this.io.readText(this.statePath);
+    const raw = this.io.readText(this.readPath || this.statePath);
     return raw !== null && raw !== this.lastSavedText;
   }
 
@@ -807,4 +821,4 @@ function depFor(node) {
     : { kind: 'ref', name: node.name };
 }
 
-module.exports = { FlowModel, STATE_FILE };
+module.exports = { FlowModel, STATE_FILE, LEGACY_STATE_FILE };

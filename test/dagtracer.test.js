@@ -228,7 +228,7 @@ test('dagtracer: detects dgt and its version', async () => {
 test('dagtracer: missing dgt leaves the integration missing with a helpful reason', async () => {
   const { host, posted } = await hostWith(fakeDgt({ missing: true }));
   assert.equal(host.status()[0].state, STATE.MISSING);
-  assert.match(host.status()[0].reason, /dbtFlow\.integrations\.dagtracer\.executable/);
+  assert.match(host.status()[0].reason, /nodeviz\.integrations\.dagtracer\.executable/);
   await host.handle({ type: 'dagtracer/trace', starts: ['mart'], column: 'region', direction: 'up' });
   assert.match(lastError(posted).message, /not available/);
 });
@@ -347,7 +347,7 @@ test('dagtracer: a column that is not in the box is reported as absent, not draw
 });
 
 test('dagtracer: without a column it offers the box columns from catalog.json', async () => {
-  const root = fs.mkdtempSync(path.join(require('os').tmpdir(), 'dbtflow-cat-'));
+  const root = fs.mkdtempSync(path.join(require('os').tmpdir(), 'nodeviz-cat-'));
   fs.mkdirSync(path.join(root, 'target'));
   fs.writeFileSync(path.join(root, 'target', 'catalog.json'), JSON.stringify({
     nodes: {
@@ -375,7 +375,7 @@ test('dagtracer: without a catalog it asks for the name; cancelling runs nothing
   const dgt = fakeDgt();
   let asked = 0;
   // An empty folder, so a real catalog.json on this machine cannot answer instead.
-  const root = fs.mkdtempSync(path.join(require('os').tmpdir(), 'dbtflow-nocat-'));
+  const root = fs.mkdtempSync(path.join(require('os').tmpdir(), 'nodeviz-nocat-'));
   const { host, posted } = await hostWith(dgt, {}, { projectRoot: () => root, ask: async () => (asked++, undefined) });
   const before = dgt.calls.length;
   await host.handle({ type: 'dagtracer/traceBox', id: 'prep2' });
@@ -403,7 +403,7 @@ test('dagtracer: a missing manifest or catalog gets a hint to build first', asyn
 
 test('catalog: columns for models, seeds and sources; null when there is no catalog', () => {
   const { columnsFor } = require('../src/integrations/dagtracer/catalog');
-  const root = fs.mkdtempSync(path.join(require('os').tmpdir(), 'dbtflow-cat-'));
+  const root = fs.mkdtempSync(path.join(require('os').tmpdir(), 'nodeviz-cat-'));
   assert.equal(columnsFor(root, 'prep2'), null);
   fs.mkdirSync(path.join(root, 'target'));
   fs.writeFileSync(path.join(root, 'target', 'catalog.json'), JSON.stringify({

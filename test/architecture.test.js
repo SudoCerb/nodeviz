@@ -86,7 +86,7 @@ test('canvas add-ons only use the API main.js gives them', () => {
     const text = fs.readFileSync(path.join(dir, file), 'utf8');
     assert.ok(list.includes(id), `media/integrations/${file} has no integration called ${id}`);
     assert.doesNotMatch(text, /acquireVsCodeApi/, `${file} must post through its API, not its own VS Code handle`);
-    assert.match(text, /window\.dbtFlowPlugins/, `${file} must register through window.dbtFlowPlugins`);
+    assert.match(text, /window\.nodevizPlugins/, `${file} must register through window.nodevizPlugins`);
     assert.match(text, new RegExp(`id: '${id}'`), `${file} must register with id '${id}'`);
   }
 });

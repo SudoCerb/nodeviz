@@ -22,7 +22,7 @@
   const ORIGIN = new Set(['present_at_source', 'column_appears', 'value_present_at_source', 'value_appears']);
   const ENDS = new Set(['present_at_leaf', 'value_present_at_leaf']);
 
-  (window.dbtFlowPlugins = window.dbtFlowPlugins || []).push({ id: 'dagtracer', init });
+  (window.nodevizPlugins = window.nodevizPlugins || []).push({ id: 'dagtracer', init });
 
   function init(api) {
     let ready = false;

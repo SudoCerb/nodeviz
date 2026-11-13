@@ -38,7 +38,7 @@ module.exports = {
       return {
         ok: false,
         state: 'missing',
-        reason: `"${exe}" was not found. Install dgt, or set dbtFlow.integrations.dagtracer.executable to its full path.`,
+        reason: `"${exe}" was not found. Install dgt, or set nodeviz.integrations.dagtracer.executable to its full path.`,
       };
     }
     if (!r.ok) return { ok: false, state: 'failed', reason: firstLine(r.stderr) || `"${exe} --version" failed (${r.error || `exit ${r.code}`}).` };

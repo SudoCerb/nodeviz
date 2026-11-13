@@ -26,7 +26,7 @@ function loadAddon() {
   const file = path.join(__dirname, '..', 'media', 'integrations', 'dagtracer.js');
   delete require.cache[require.resolve(file)];
   require(file);
-  return window.dbtFlowPlugins[0];
+  return window.nodevizPlugins[0];
 }
 
 test('dagtracer add-on: menu, overlay, panel, Esc and the absent case', () => {

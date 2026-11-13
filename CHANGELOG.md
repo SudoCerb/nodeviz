@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 (preview)
+
+- **Settings are now `nodeviz.*`** (were `dbtFlow.*`), and the layout file is `.nodeviz.json` (was `.dbtflow.json`). Old settings still work when the new one is not set, and NodeViz says so once. The old layout file is read and moved to `.nodeviz.json` the first time you change something on the canvas. Command ids are `nodeviz.*` too; update any keyboard shortcuts you made for them.
+
 ## 0.3.0 (preview)
 
 First release on the VS Code Marketplace.

@@ -11,7 +11,7 @@
  * - Integrations get a small API (see makeApi). They can read the project
  *   root and a copy of the graph view, run tools, log, read their own settings
  *   and post messages to the canvas under their own prefix ("<id>/<type>").
- *   They cannot touch FlowModel, .dbtflow.json or undo history.
+ *   They cannot touch FlowModel, .nodeviz.json or undo history.
  * - No VS Code imports. Everything VS Code-specific comes in through `services`,
  *   so the host is tested with plain Node.
  */
@@ -38,7 +38,7 @@ class IntegrationHost {
    *   projectRoot()            absolute path of the dbt project, or null
    *   view()                   current graph view (FlowModel.getView()), or null
    *   post(msg)                send a message to every canvas
-   *   setting(id, key, dflt)   value of dbtFlow.integrations.<id>.<key>
+   *   setting(id, key, dflt)   value of nodeviz.integrations.<id>.<key>
    *   logger(id, title)        returns (line) => void, e.g. a VS Code output channel
    *   ask(opts)                optional: text input { prompt, placeHolder, value, validate } → string | undefined
    *   pick(opts)               optional: pick from { title, placeHolder, items: [{ label, description }], allowTyped } → label | undefined
@@ -113,7 +113,7 @@ class IntegrationHost {
     e.reason = null;
     if (this.setting(id, 'enabled', true) === false) {
       e.state = STATE.DISABLED;
-      e.reason = `Turned off in settings (dbtFlow.integrations.${id}.enabled).`;
+      e.reason = `Turned off in settings (nodeviz.integrations.${id}.enabled).`;
       e.log(e.reason);
       return;
     }

@@ -31,7 +31,7 @@ test('runTool: non-zero exit is not ok, stderr is kept', async () => {
 });
 
 test('runTool: missing executable resolves with not_found', async () => {
-  const r = await runTool('dbtflow-no-such-tool-xyz', ['--version']);
+  const r = await runTool('nodeviz-no-such-tool-xyz', ['--version']);
   assert.equal(r.ok, false);
   assert.equal(r.error, 'not_found');
 });
@@ -194,7 +194,7 @@ test('host: turned off in settings', async () => {
 });
 
 test('host: modules that fail to load or have the wrong shape are recorded as failed', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dbtflow-int-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nodeviz-int-'));
   fs.mkdirSync(path.join(dir, 'broken'));
   fs.writeFileSync(path.join(dir, 'broken', 'index.js'), 'this is not javascript (');
   fs.mkdirSync(path.join(dir, 'shapeless'));

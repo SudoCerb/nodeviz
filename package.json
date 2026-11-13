@@ -43,7 +43,7 @@
   "contributes": {
     "commands": [
       {
-        "command": "dbtFlow.openPanel",
+        "command": "nodeviz.openPanel",
         "title": "Open Canvas",
         "category": "NodeViz",
         "icon": {
@@ -52,49 +52,49 @@
         }
       },
       {
-        "command": "dbtFlow.refresh",
+        "command": "nodeviz.refresh",
         "title": "Reload Project",
         "category": "NodeViz",
         "icon": "$(refresh)"
       },
       {
-        "command": "dbtFlow.tidy",
+        "command": "nodeviz.tidy",
         "title": "Tidy Up Layout",
         "category": "NodeViz",
         "icon": "$(type-hierarchy-sub)"
       },
       {
-        "command": "dbtFlow.createAll",
+        "command": "nodeviz.createAll",
         "title": "Create All Files",
         "category": "NodeViz"
       },
       {
-        "command": "dbtFlow.undo",
+        "command": "nodeviz.undo",
         "title": "Undo Last Canvas Change",
         "category": "NodeViz"
       },
       {
-        "command": "dbtFlow.redo",
+        "command": "nodeviz.redo",
         "title": "Redo Canvas Change",
         "category": "NodeViz"
       },
       {
-        "command": "dbtFlow.selectProject",
+        "command": "nodeviz.selectProject",
         "title": "Choose dbt Project…",
         "category": "NodeViz"
       },
       {
-        "command": "dbtFlow.checkIntegrations",
+        "command": "nodeviz.checkIntegrations",
         "title": "Check Integrations",
         "category": "NodeViz"
       },
       {
-        "command": "dbtFlow.traceColumnAtCursor",
+        "command": "nodeviz.traceColumnAtCursor",
         "title": "Trace Column",
         "category": "NodeViz"
       },
       {
-        "command": "dbtFlow.runDbt",
+        "command": "nodeviz.runDbt",
         "title": "Run dbt Command…",
         "category": "NodeViz"
       }
@@ -102,14 +102,14 @@
     "menus": {
       "editor/context": [
         {
-          "command": "dbtFlow.traceColumnAtCursor",
+          "command": "nodeviz.traceColumnAtCursor",
           "when": "resourceExtname == .sql",
           "group": "navigation@100"
         }
       ],
       "editor/title": [
         {
-          "command": "dbtFlow.openPanel",
+          "command": "nodeviz.openPanel",
           "when": "resourceExtname == .sql || resourceExtname == .yml || resourceFilename == dbt_project.yml",
           "group": "navigation@-1"
         }
@@ -118,52 +118,52 @@
     "configuration": {
       "title": "NodeViz",
       "properties": {
-        "dbtFlow.openOnStartup": {
+        "nodeviz.openOnStartup": {
           "type": "boolean",
           "default": true,
           "description": "Open the canvas next to your code when a dbt project is opened."
         },
-        "dbtFlow.projectPath": {
+        "nodeviz.projectPath": {
           "type": "string",
           "default": "",
           "description": "Folder that holds dbt_project.yml, absolute or relative to the workspace. Leave empty to find it automatically."
         },
-        "dbtFlow.confirmFileEdits": {
+        "nodeviz.confirmFileEdits": {
           "type": "boolean",
           "default": true,
           "description": "Ask before adding a ref() to an existing .sql file when you connect two boxes."
         },
-        "dbtFlow.openCreatedFile": {
+        "nodeviz.openCreatedFile": {
           "type": "boolean",
           "default": true,
           "description": "Open the new .sql file after Create file."
         },
-        "dbtFlow.dbt.executable": {
+        "nodeviz.dbt.executable": {
           "type": "string",
           "default": "dbt",
           "description": "The dbt command typed into the NodeViz terminal, or its full path, e.g. ~/.venvs/dbt-databricks/bin/dbt."
         },
-        "dbtFlow.dbt.target": {
+        "nodeviz.dbt.target": {
           "type": "string",
           "default": "",
           "description": "Added as --target to every dbt command. Leave empty for the profile's default target."
         },
-        "dbtFlow.dbt.envFile": {
+        "nodeviz.dbt.envFile": {
           "type": "string",
           "default": "",
           "description": "A file of KEY=VALUE or export lines (e.g. ~/.databricks.env) loaded once into the NodeViz terminal, like running source on it yourself."
         },
-        "dbtFlow.integrations.dagtracer.enabled": {
+        "nodeviz.integrations.dagtracer.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Use DAGtracer (dgt) to trace where a column stops in the DAG, when dgt is installed."
         },
-        "dbtFlow.integrations.dagtracer.executable": {
+        "nodeviz.integrations.dagtracer.executable": {
           "type": "string",
           "default": "dgt",
           "description": "The dgt command, or its full path, e.g. /home/you/projects/dagtracer/.venv/bin/dgt."
         },
-        "dbtFlow.integrations.dagtracer.timeoutSeconds": {
+        "nodeviz.integrations.dagtracer.timeoutSeconds": {
           "type": "number",
           "default": 120,
           "minimum": 5,

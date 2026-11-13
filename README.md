@@ -85,7 +85,7 @@ From a terminal: `code --install-extension nodeviz.nodeviz`
 If the canvas does not appear:
 
 - Open it from the **NodeViz** button in the status bar, the NodeViz icon in the title bar of any `.sql` or `.yml` file, or the command palette: **NodeViz: Open Canvas**.
-- More than one dbt project in the folder? Run **NodeViz: Choose dbt Project…**, or set `dbtFlow.projectPath`.
+- More than one dbt project in the folder? Run **NodeViz: Choose dbt Project…**, or set `nodeviz.projectPath`.
 - Added the dbt project *after* opening the folder (for example by copying it into a freshly cloned repo)? Run **Developer: Reload Window** once. NodeViz 0.3.0 only looks for `dbt_project.yml` when the folder opens.
 
 ### 3. Read the canvas
@@ -119,7 +119,7 @@ python3 -m venv ~/.venvs/dbt
 ~/.venvs/dbt/bin/dbt --version                # shows dbt-core and the adapter
 ```
 
-The adapter package installs dbt-core with it. Then point NodeViz at that `dbt` with `dbtFlow.dbt.executable` (below). NodeViz then uses it whether or not the environment is activated.
+The adapter package installs dbt-core with it. Then point NodeViz at that `dbt` with `nodeviz.dbt.executable` (below). NodeViz then uses it whether or not the environment is activated.
 
 **Your own terminal is a different story.** It uses whichever `dbt` comes first on your `PATH`, which may be an older or broken install (a global pip, pyenv or Homebrew one). If the NodeViz terminal works and yours fails, or shows another version, check:
 
@@ -134,17 +134,17 @@ Add settings to `.vscode/settings.json` **in the folder you opened** in VS Code 
 
 ```json
 {
-  "dbtFlow.dbt.executable": "/home/you/.venvs/dbt/bin/dbt",
-  "dbtFlow.dbt.target": "dev",
-  "dbtFlow.dbt.envFile": "~/.dbt.env"
+  "nodeviz.dbt.executable": "/home/you/.venvs/dbt/bin/dbt",
+  "nodeviz.dbt.target": "dev",
+  "nodeviz.dbt.envFile": "~/.dbt.env"
 }
 ```
 
 | Setting | Use it when |
 | --- | --- |
-| `dbtFlow.dbt.executable` | dbt lives in a virtual environment, or the terminal finds the wrong `dbt`. Use the full path |
-| `dbtFlow.dbt.target` | You want a target other than the default in `profiles.yml` |
-| `dbtFlow.dbt.envFile` | Your `profiles.yml` reads credentials with `env_var()` |
+| `nodeviz.dbt.executable` | dbt lives in a virtual environment, or the terminal finds the wrong `dbt`. Use the full path |
+| `nodeviz.dbt.target` | You want a target other than the default in `profiles.yml` |
+| `nodeviz.dbt.envFile` | Your `profiles.yml` reads credentials with `env_var()` |
 
 The env file holds `KEY=VALUE` or `export KEY=VALUE` lines and stays **outside** your repo:
 
@@ -190,9 +190,9 @@ Removing a box never deletes a file. A box without a file is deleted; any other 
 | Problem | Fix |
 | --- | --- |
 | No canvas | Open the folder that holds `dbt_project.yml` (or a parent), then **NodeViz: Open Canvas**. Project added after opening the folder: **Developer: Reload Window** |
-| ▶ runs the wrong dbt, or `command not found` | Set `dbtFlow.dbt.executable` to the full path, in `.vscode/settings.json` of the opened folder |
+| ▶ runs the wrong dbt, or `command not found` | Set `nodeviz.dbt.executable` to the full path, in `.vscode/settings.json` of the opened folder |
 | dbt works in the NodeViz terminal but fails in yours (an `ImportError`, or another version) | Your terminal finds another `dbt`. Run `which dbt`, then `source ~/.venvs/dbt/bin/activate` |
-| `Env var required but not provided` | Set `dbtFlow.dbt.envFile`, then close the **NodeViz** terminal so it reloads the file |
+| `Env var required but not provided` | Set `nodeviz.dbt.envFile`, then close the **NodeViz** terminal so it reloads the file |
 | `unable to infer all dependencies` | A stale parse cache: delete `target/partial_parse.msgpack` and run again |
 | A connection points the wrong way | **Ctrl+Z** on the canvas, then drag from the input's right-hand dot |
 | No *Trace column…* in the menu | Install DAGtracer (`dgt`), run **▶ → docs generate**, and check **NodeViz: Check Integrations** |
@@ -222,16 +222,16 @@ Removing a box never deletes a file. A box without a file is deleted; any other 
 
 | Setting | Default | |
 | --- | --- | --- |
-| `dbtFlow.openOnStartup` | `true` | Open the canvas next to your code when a dbt project opens. |
-| `dbtFlow.projectPath` | empty | Folder holding `dbt_project.yml`. Empty means find it automatically. |
-| `dbtFlow.confirmFileEdits` | `true` | Ask before adding or changing a `ref()` in an existing file. |
-| `dbtFlow.openCreatedFile` | `true` | Open the new file after *Create file*. |
-| `dbtFlow.dbt.executable` | `dbt` | The dbt command, or its full path. |
-| `dbtFlow.dbt.target` | empty | Added as `--target` to every dbt command. Empty uses the profile's default. |
-| `dbtFlow.dbt.envFile` | empty | A file of `KEY=VALUE` or `export` lines loaded once into the NodeViz terminal. |
-| `dbtFlow.integrations.dagtracer.enabled` | `true` | Offer column tracing when `dgt` is installed. |
-| `dbtFlow.integrations.dagtracer.executable` | `dgt` | The `dgt` command, or its full path. |
-| `dbtFlow.integrations.dagtracer.timeoutSeconds` | `120` | Stop a trace that takes longer than this. |
+| `nodeviz.openOnStartup` | `true` | Open the canvas next to your code when a dbt project opens. |
+| `nodeviz.projectPath` | empty | Folder holding `dbt_project.yml`. Empty means find it automatically. |
+| `nodeviz.confirmFileEdits` | `true` | Ask before adding or changing a `ref()` in an existing file. |
+| `nodeviz.openCreatedFile` | `true` | Open the new file after *Create file*. |
+| `nodeviz.dbt.executable` | `dbt` | The dbt command, or its full path. |
+| `nodeviz.dbt.target` | empty | Added as `--target` to every dbt command. Empty uses the profile's default. |
+| `nodeviz.dbt.envFile` | empty | A file of `KEY=VALUE` or `export` lines loaded once into the NodeViz terminal. |
+| `nodeviz.integrations.dagtracer.enabled` | `true` | Offer column tracing when `dgt` is installed. |
+| `nodeviz.integrations.dagtracer.executable` | `dgt` | The `dgt` command, or its full path. |
+| `nodeviz.integrations.dagtracer.timeoutSeconds` | `120` | Stop a trace that takes longer than this. |
 
 </details>
 
@@ -259,9 +259,11 @@ New boxes go in the folder suggested by their name (`stg_` → staging, `int_` �
 </details>
 
 <details>
-<summary><b>The <code>.dbtflow.json</code> file</b></summary>
+<summary><b>The <code>.nodeviz.json</code> file</b></summary>
 
-Box positions, boxes without files, their connections, the flow direction and the boxes you took off the canvas are kept in `.dbtflow.json` next to `dbt_project.yml`. Commit it if your team should see the same layout and sketches, or add it to `.gitignore` if not. It is only written after you change something on the canvas.
+Box positions, boxes without files, their connections, the flow direction and the boxes you took off the canvas are kept in `.nodeviz.json` next to `dbt_project.yml`. Commit it if your team should see the same layout and sketches, or add it to `.gitignore` if not. It is only written after you change something on the canvas.
+
+Up to 0.3.0 this file was called `.dbtflow.json`, and settings were called `dbtFlow.*`. Both still work: NodeViz reads the old file and moves it to `.nodeviz.json` the first time you change something, and reads an old setting when the `nodeviz.*` one is not set.
 
 </details>
 

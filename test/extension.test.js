@@ -88,7 +88,7 @@ function makeVscode(wsRoot, answers) {
 }
 
 test('extension activates, renders HTML and handles canvas messages', async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dbtflow-ext-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nodeviz-ext-'));
   fs.writeFileSync(path.join(root, 'dbt_project.yml'), 'name: demo\n');
   fs.mkdirSync(path.join(root, 'models', 'staging'), { recursive: true });
   fs.writeFileSync(path.join(root, 'models', 'staging', 'stg_a.sql'), 'select 1 as id\n');
@@ -125,18 +125,18 @@ test('extension activates, renders HTML and handles canvas messages', async () =
   };
   fake.handlers.webview = webview;
   ext.activate(context);
-  assert.ok(fake.commands['dbtFlow.openPanel']);
+  assert.ok(fake.commands['nodeviz.openPanel']);
 
   // On startup the canvas opens by itself as an editor tab to the right, without stealing focus.
   assert.equal(fake.handlers.panels.length, 0);
   await new Promise((r) => setTimeout(r, 700));
   assert.equal(fake.handlers.panels.length, 1);
   const panel = fake.handlers.panels[0];
-  assert.equal(panel.type, 'dbtFlow.panel');
+  assert.equal(panel.type, 'nodeviz.panel');
   assert.deepEqual(panel.showOptions, { viewColumn: 2, preserveFocus: true });
   assert.equal(panel.options.retainContextWhenHidden, true);
   // The command focuses the existing tab instead of opening a second one.
-  fake.commands['dbtFlow.openPanel']();
+  fake.commands['nodeviz.openPanel']();
   assert.equal(fake.handlers.panels.length, 1);
   assert.equal(panel.revealed, 1);
   assert.match(webview.html, /Content-Security-Policy/);
@@ -205,4 +205,32 @@ test('extension activates, renders HTML and handles canvas messages', async () =
   await send({ type: 'dbt', command: 'build', id: 'stg_b' });
   assert.equal(term.sent.length, 2);
   assert.equal(fake.warnings.filter((w) => w.startsWith('ERR')).length, 0, fake.warnings.join('\n'));
+});
+
+test('settings: nodeviz.* wins, then an old dbtFlow.* value, then the default', () => {
+  const user = {
+    nodeviz: { 'dbt.target': { workspaceValue: 'prod' } },
+    dbtFlow: { 'dbt.target': { workspaceValue: 'old' }, 'dbt.executable': { globalValue: '/old/dbt' } },
+  };
+  const defaults = { 'dbt.target': '', 'dbt.executable': 'dbt', openOnStartup: true };
+  const fake = makeVscode(os.tmpdir(), []);
+  fake.vscode.workspace.getConfiguration = (section) => ({
+    inspect: (k) => ({ defaultValue: defaults[k], ...((user[section] || {})[k] || {}) }),
+    get: (k) => {
+      const i = (user[section] || {})[k] || {};
+      return i.workspaceValue ?? i.globalValue ?? defaults[k];
+    },
+  });
+  const origLoad = Module._load;
+  Module._load = function (request, ...rest) {
+    if (request === 'vscode') return fake.vscode;
+    return origLoad.call(this, request, ...rest);
+  };
+  delete require.cache[require.resolve('../extension')];
+  const ext = require('../extension');
+  Module._load = origLoad;
+  const s = ext.settings();
+  assert.equal(s.get('dbt.target'), 'prod');
+  assert.equal(s.get('dbt.executable'), '/old/dbt');
+  assert.equal(s.get('openOnStartup'), true);
 });

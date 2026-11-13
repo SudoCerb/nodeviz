@@ -22,7 +22,7 @@ const dagtracer = require(path.join(REPO, 'src', 'integrations', 'dagtracer'));
 const { makeProject, renameFixture } = require('./project');
 
 const OUT = path.join(REPO, 'images');
-const WORK = fs.mkdtempSync(path.join(os.tmpdir(), 'dbtflow-media-'));
+const WORK = fs.mkdtempSync(path.join(os.tmpdir(), 'nodeviz-media-'));
 fs.mkdirSync(OUT, { recursive: true });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

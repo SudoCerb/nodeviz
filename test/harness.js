@@ -10,7 +10,7 @@ const { chromium } = require('playwright');
 const { FlowModel } = require('../src/model');
 const { createNodeIO } = require('../src/nodeio');
 
-const OUT = process.argv[2] || path.join(os.tmpdir(), 'dbtflow-shots');
+const OUT = process.argv[2] || path.join(os.tmpdir(), 'nodeviz-shots');
 fs.mkdirSync(OUT, { recursive: true });
 
 const DARK = {
@@ -290,7 +290,7 @@ async function main() {
   console.log('dim_customers.sql (got ref to customer_segments? n/a) / customer_ltv:\n' +
     fs.readFileSync(path.join(root, 'models/marts/customer_ltv.sql'), 'utf8'));
   console.log('empty project fct_orders.sql:\n' + created);
-  console.log('state file:\n' + fs.readFileSync(path.join(emptyRoot, '.dbtflow.json'), 'utf8').slice(0, 400));
+  console.log('state file:\n' + fs.readFileSync(path.join(emptyRoot, '.nodeviz.json'), 'utf8').slice(0, 400));
 }
 
 main().catch((e) => {

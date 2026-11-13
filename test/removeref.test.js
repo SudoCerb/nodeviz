@@ -78,7 +78,7 @@ test('sqlgen: ref forms, sources and spacing', () => {
 // ---------------------------------------------------------------- model
 
 function project(files) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dbtflow-rm-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nodeviz-rm-'));
   for (const [rel, text] of Object.entries({ 'dbt_project.yml': "name: 'demo'\n", ...files })) {
     fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
     fs.writeFileSync(path.join(root, rel), text);
