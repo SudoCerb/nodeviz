@@ -213,7 +213,7 @@ test('extension activates, renders HTML and handles canvas messages', async () =
   assert.deepEqual(term.opts, { name: 'NodeViz', cwd: root });
   assert.deepEqual(term.sent, ['dbt build --select +fct_c', 'dbt docs generate']);
   // Unknown commands and unknown boxes never reach the terminal (planned boxes: test/dbtrun.test.js).
-  await send({ type: 'dbt', command: 'clean' });
+  await send({ type: 'dbt', command: 'run-operation' });
   await send({ type: 'dbt', command: 'build', id: 'stg_b' });
   assert.equal(term.sent.length, 2);
   assert.equal(fake.warnings.filter((w) => w.startsWith('ERR')).length, 0, fake.warnings.join('\n'));

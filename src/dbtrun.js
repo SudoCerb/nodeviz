@@ -22,6 +22,8 @@ const PROJECT_COMMANDS = [
   { command: 'docs generate', hint: 'updates catalog.json' },
   { command: 'deps', hint: 'installs packages' },
   { command: 'debug', hint: 'checks the connection' },
+  // Clears a stale target/partial_parse.msgpack ("unable to infer all dependencies").
+  { command: 'clean', hint: 'deletes target/ and dbt_packages/; run deps after' },
 ];
 
 /** Commands on a box's right-click menu, by box kind. Planned and red boxes get none. */
@@ -33,7 +35,7 @@ const BOX_COMMANDS = {
 };
 
 /** Commands that do not take --target. */
-const NO_TARGET = new Set(['deps']);
+const NO_TARGET = new Set(['deps', 'clean']);
 
 const KNOWN = new Set(PROJECT_COMMANDS.filter((c) => c !== '-').map((c) => c.command));
 

@@ -38,7 +38,7 @@ Dragging a connection onto a model that already has a file adds the `ref()` to t
 
 ## Run dbt from the canvas
 
-Right-click a box and choose **dbt build**, **run**, **test** or **compile**: it runs that model and everything upstream of it (`--select +model`), just as you would type it. The **▶** button in the tool bar runs a command on the whole project, including `seed`, `snapshot`, `docs generate`, `deps` and `debug`.
+Right-click a box and choose **dbt build**, **run**, **test** or **compile**: it runs that model and everything upstream of it (`--select +model`), just as you would type it. The **▶** button in the tool bar runs a command on the whole project, including `seed`, `snapshot`, `docs generate`, `deps`, `debug` and `clean`.
 
 ![Running dbt build on a box from its menu](images/run.gif)
 
@@ -191,12 +191,12 @@ Removing a box never deletes a file. A box without a file is deleted; any other 
 
 | Problem | Fix |
 | --- | --- |
-| No canvas | Open the folder that holds `dbt_project.yml` (or a parent), then **NodeViz: Open Canvas**. Project added after opening the folder: **Developer: Reload Window** |
+| No canvas | Open the folder that holds `dbt_project.yml` (or a parent), then **NodeViz: Open Canvas** |
 | ▶ runs the wrong dbt, or `command not found` | Set `nodeviz.dbt.executable` to the full path, in `.vscode/settings.json` of the opened folder |
 | dbt works in the NodeViz terminal but fails in yours (an `ImportError`, or another version) | Your terminal finds another `dbt`. Run `which dbt`, then `source ~/.venvs/dbt/bin/activate` |
 | `Env var required but not provided` | Set `nodeviz.dbt.envFile`, then close the **NodeViz** terminal so it reloads the file |
-| `unable to infer all dependencies` | A stale parse cache: delete `target/partial_parse.msgpack` and run again |
-| A connection points the wrong way | **Ctrl+Z** on the canvas, then drag from the input's right-hand dot |
+| `unable to infer all dependencies` | A stale parse cache: **▶ → clean**, then **▶ → deps** if you use packages, and run again |
+| A connection points the wrong way | **Ctrl+Z** on the canvas, then drag from the model you read from to the model you are building (the arrow points at the reader) |
 | No *Trace column…* in the menu | Install DAGtracer (`dgt`), run **▶ → docs generate**, and check **NodeViz: Check Integrations** |
 
 ## Reference

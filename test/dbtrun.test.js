@@ -36,15 +36,18 @@ test('whole project, executable and target', () => {
     planDbt({ command: 'build', node: mart, executable: '~/.venvs/dbt-databricks/bin/dbt', target: 'databricks' }).line,
     '~/.venvs/dbt-databricks/bin/dbt build --select +mart --target databricks'
   );
-  // deps takes no --target.
+  // deps and clean take no --target.
   assert.equal(planDbt({ command: 'deps', target: 'databricks' }).line, 'dbt deps');
+  assert.equal(planDbt({ command: 'clean', target: 'databricks' }).line, 'dbt clean');
+  // clean is for the whole project only, never on a box's menu.
+  assert.equal(planDbt({ command: 'clean', node: mart }).ok, false);
   // Blank settings fall back to plain dbt and no target.
   assert.equal(planDbt({ command: 'run', executable: '  ', target: '' }).line, 'dbt run');
 });
 
 test('only listed commands run, and every part is quoted', () => {
   assert.equal(planDbt({ command: 'rm -rf /' }).ok, false);
-  assert.equal(planDbt({ command: 'clean' }).ok, false);
+  assert.equal(planDbt({ command: 'run-operation' }).ok, false);
   assert.equal(planDbt({}).ok, false);
   assert.equal(shellWord("it's; rm x"), `'it'\\''s; rm x'`);
   assert.equal(shellWord('~/my venv/bin/dbt'), `"$HOME"/'my venv/bin/dbt'`);
