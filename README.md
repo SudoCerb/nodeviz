@@ -176,12 +176,12 @@ Unsaved files are saved before a command runs.
 ### 6. Sketch a new model
 
 1. **Create a box.** Right-click an empty spot on the canvas → **Create new box**, and type the model name. NodeViz suggests a folder from the prefix (`stg_` → staging, `int_` → intermediate, `fct_` / `dim_` / `mart_` → marts). Change it later with **Change folder…**.
-2. **Connect its inputs.** Drag **from the right-hand dot of each model the new one should read from**, and drop it on the new box. Arrows always run from the input to the model that reads it. Planned connections are dashed.
-3. **Create the file.** Right-click the box → **Create file**. NodeViz writes the `.sql` file with one import CTE per input and a placeholder `select` at the end, and opens it.
+2. **Connect its inputs.** Drag **from the right-hand dot of each model the new one should read from**, and drop it on the new box. Arrows always run from the input to the model that reads it. Planned connections are dashed. With its first input, the new box moves next to it.
+3. **Create the file.** Right-click the box → **Create file**. NodeViz writes the `.sql` file with one import CTE per input and a placeholder `select` at the end, and opens it. If the folder has one models `.yml`, the model is added there too.
 4. **Write the logic.** Replace the placeholder `select` with your SQL and save. The box updates.
 5. **Build it.** Right-click the box → **dbt build**.
 
-**Connecting onto a model that already has a file** adds an import CTE to the top of *that* file, after a confirm dialog. Read the dialog: it names the file that will change. If it names the model you meant to read *from*, you dragged the wrong way: cancel and drag from the other box.
+**Connecting onto a model that already has a file** adds an import CTE to the top of *that* file, after a confirm dialog that says it in words: "`fct_orders.sql` will read from `mart_new`." If that is backwards, click **Swap direction**. NodeViz also asks when a connection looks backwards on its own, for example an existing model reading from a box that has no file yet.
 
 **Undo** (**Ctrl+Z** on the canvas) reverts canvas actions one step at a time, including the file edits NodeViz made. It refuses if you have edited that file by hand since, so it never throws away your own work. **Ctrl+Shift+Z** redoes.
 
@@ -198,6 +198,8 @@ Removing a box never deletes a file. A box without a file is deleted; any other 
 | `unable to infer all dependencies` | A stale parse cache: **▶ → clean**, then **▶ → deps** if you use packages, and run again |
 | A connection points the wrong way | **Ctrl+Z** on the canvas, then drag from the model you read from to the model you are building (the arrow points at the reader) |
 | No *Trace column…* in the menu | Install DAGtracer (`dgt`), run **▶ → docs generate**, and check **NodeViz: Check Integrations** |
+| Settings in `.vscode/settings.json` seem ignored | VS Code only reads `.vscode/` in the folder you opened. Opened a repo with the project in `dbt/`? Put the settings in the repo's `.vscode/`, not in `dbt/.vscode/` |
+| `docs generate` on Databricks prints `RuntimeWarning`s about `table_owner` or `comment` | Harmless warnings from dbt's table library. Add `PYTHONWARNINGS=ignore::RuntimeWarning` to your env file to hide them |
 
 ## Reference
 

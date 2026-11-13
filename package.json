@@ -2,7 +2,7 @@
   "name": "nodeviz",
   "displayName": "NodeViz",
   "description": "A visual canvas for dbt projects: see how your models connect, and sketch new ones as boxes that become .sql files.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "preview": true,
   "publisher": "nodeviz",
   "license": "MIT",

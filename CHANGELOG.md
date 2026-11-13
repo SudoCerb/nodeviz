@@ -9,6 +9,7 @@
 - **`dbt clean` in the ▶ menu**, for the stale parse cache behind "unable to infer all dependencies". Run `deps` after it if you use packages.
 - **Materialization from `dbt_project.yml`.** The chip on a box now also shows a folder's `+materialized` from `dbt_project.yml` (the deepest folder wins); `config()` in the file still wins over it. Hover the chip to see where it came from.
 - **New models go into the folder's models `.yml`.** *Create file* adds `- name: <model>` with an empty `description:` to the folder's models `.yml` (e.g. `_marts__models.yml`), following the file's own indentation. Only when the folder has exactly one `.yml` with a `models:` list; part of the same undo step. New setting `nodeviz.addToModelsYml` (on by default).
+- README: troubleshooting for settings in the wrong `.vscode/` folder and for Databricks `RuntimeWarning`s on `docs generate`; the sketching steps describe the new connect dialog.
 
 ## 0.3.0 (preview)
 
