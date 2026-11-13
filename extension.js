@@ -126,6 +126,13 @@ class Controller {
     if (this.model.loadError) vscode.window.showWarningMessage(`NodeViz: ${this.model.loadError}`);
   }
 
+  /** True when the workspace has a dbt_project.yml (3 folders deep at most), or a project folder is set. */
+  workspaceHasProject() {
+    if (settings().get('projectPath')) return true;
+    const folders = (vscode.workspace.workspaceFolders || []).map((f) => f.uri.fsPath);
+    return folders.length > 0 && findProjectRoots(folders, this.io).length > 0;
+  }
+
   async selectProject() {
     const folders = (vscode.workspace.workspaceFolders || []).map((f) => f.uri.fsPath);
     const roots = findProjectRoots(folders, this.io);
@@ -775,15 +782,61 @@ function activate(context) {
   const ctl = new Controller(context);
 
   // A status bar button to bring the canvas back after it has been closed.
+  // Shown once there is a dbt project (or the canvas was opened by hand).
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
   status.text = '$(type-hierarchy-sub) NodeViz';
   status.tooltip = 'Open the NodeViz canvas';
   status.command = 'nodeviz.openPanel';
-  status.show();
+
+  // NodeViz activates in every workspace (onStartupFinished), so it notices a dbt
+  // project that is added after the folder was opened. Until there is one it
+  // shows nothing and runs nothing: no status bar button, no integrations, no refreshes.
+  let started = false;
+  let openTimer = null;
+  let probe = null;
+  context.subscriptions.push({ dispose: () => (clearTimeout(openTimer), clearTimeout(probe)) });
+
+  /** when: 'startup' (project there from the start), 'later' (project just appeared), 'manual' (Open Canvas). */
+  const start = (when) => {
+    if (started) return;
+    started = true;
+    status.show();
+    ctl.startIntegrations();
+    noticeLegacySettings(context);
+    if (when === 'manual') return;
+    if (settings().get('openOnStartup')) {
+      // On startup, wait until editors have been restored, so the canvas lands beside the code.
+      const delay = when === 'startup' ? STARTUP_DELAY_MS : 0;
+      openTimer = setTimeout(() => {
+        if (!ctl.panel) ctl.openPanel({ preserveFocus: true });
+      }, delay);
+    } else if (when === 'later') {
+      vscode.window
+        .showInformationMessage('NodeViz found a dbt project in this workspace.', 'Open Canvas')
+        .then((choice) => choice && ctl.openPanel());
+    }
+  };
+
+  /** A dbt_project.yml may have appeared: show it, unless NodeViz already shows a project. */
+  const projectAppeared = () => {
+    if (ctl.model && ctl.model.cfg && ctl.model.cfg.hasProject) return;
+    if (!ctl.workspaceHasProject()) return;
+    ctl.loadProject();
+    ctl.broadcast();
+    start('later');
+  };
+  const probeSoon = () => {
+    if (started && ctl.model && ctl.model.cfg && ctl.model.cfg.hasProject) return;
+    clearTimeout(probe);
+    probe = setTimeout(projectAppeared, 500);
+  };
 
   context.subscriptions.push(
     status,
-    vscode.commands.registerCommand('nodeviz.openPanel', () => ctl.openPanel()),
+    vscode.commands.registerCommand('nodeviz.openPanel', () => {
+      start('manual');
+      ctl.openPanel();
+    }),
     vscode.commands.registerCommand('nodeviz.refresh', () => {
       ctl.loadProject(ctl.model ? ctl.model.cfg.root : undefined);
       ctl.broadcast();
@@ -812,19 +865,20 @@ function activate(context) {
         )
       : { dispose() {} },
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      if (!started) return projectAppeared();
       ctl.loadProject();
       ctl.broadcast();
     }),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (affectsSetting(e, 'projectPath')) {
+        if (!started) return projectAppeared();
         ctl.loadProject();
         ctl.broadcast();
       }
     })
   );
 
-  // Optional tools (DAGtracer, ...). Runs in the background; the canvas never waits for it.
-  ctl.startIntegrations();
+  // Optional tools (DAGtracer, ...) start in start(), in the background; the canvas never waits for them.
   if (vscode.workspace.onDidChangeConfiguration) {
     context.subscriptions.push(
       vscode.workspace.onDidChangeConfiguration((e) => {
@@ -834,25 +888,24 @@ function activate(context) {
   }
 
   const watcher = vscode.workspace.createFileSystemWatcher('**/*.{sql,py,csv,yml,yaml}');
-  const onChange = () => ctl.scheduleRefresh();
-  watcher.onDidCreate(onChange);
+  const onChange = () => started && ctl.scheduleRefresh();
+  // A project copied in as a folder may only report some of its files: any new
+  // file is a reason to look for dbt_project.yml again (cheap, and only until one is found).
+  watcher.onDidCreate(() => {
+    probeSoon();
+    onChange();
+  });
   watcher.onDidChange(onChange);
   watcher.onDidDelete(onChange);
+  const projectWatcher = vscode.workspace.createFileSystemWatcher('**/dbt_project.yml');
+  projectWatcher.onDidCreate(probeSoon);
   const stateWatcher = vscode.workspace.createFileSystemWatcher('**/{.nodeviz.json,.dbtflow.json}');
-  const onState = () => ctl.scheduleRefresh(true);
+  const onState = () => started && ctl.scheduleRefresh(true);
   stateWatcher.onDidChange(onState);
   stateWatcher.onDidCreate(onState);
-  context.subscriptions.push(watcher, stateWatcher);
+  context.subscriptions.push(watcher, projectWatcher, stateWatcher);
 
-  // Open next to the code when VS Code starts, after editors have been restored.
-  if (settings().get('openOnStartup')) {
-    const timer = setTimeout(() => {
-      if (!ctl.panel) ctl.openPanel({ preserveFocus: true });
-    }, STARTUP_DELAY_MS);
-    context.subscriptions.push({ dispose: () => clearTimeout(timer) });
-  }
-
-  noticeLegacySettings(context);
+  if (ctl.workspaceHasProject()) start('startup');
 }
 
 /** Once per machine: say that dbtFlow.* settings are now nodeviz.* (the old ones keep working). */

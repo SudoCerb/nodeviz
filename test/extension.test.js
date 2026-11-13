@@ -30,7 +30,16 @@ function makeVscode(wsRoot, answers) {
         get: (k) => ({ projectPath: '', confirmFileEdits: true, openCreatedFile: true, openOnStartup: true })[k],
         update: async () => {},
       }),
-      createFileSystemWatcher: () => ({ onDidCreate() {}, onDidChange() {}, onDidDelete() {}, dispose() {} }),
+      createFileSystemWatcher: (glob) => {
+        const w = {
+          onDidCreate(fn) { w.create = fn; },
+          onDidChange(fn) { w.change = fn; },
+          onDidDelete(fn) { w.delete = fn; },
+          dispose() {},
+        };
+        handlers.watchers = { ...(handlers.watchers || {}), [glob]: w };
+        return w;
+      },
       onDidChangeWorkspaceFolders: emitter(),
       onDidRenameFiles: (fn) => {
         handlers.rename = fn;
@@ -40,7 +49,10 @@ function makeVscode(wsRoot, answers) {
     },
     window: {
       activeTextEditor: null,
-      createStatusBarItem: () => ({ show() {}, dispose() {} }),
+      createStatusBarItem: () => {
+        handlers.status = { shown: false, show() { handlers.status.shown = true; }, dispose() {} };
+        return handlers.status;
+      },
       onDidChangeActiveTextEditor: emitter(),
       showInputBox: async (opts) => {
         const v = answers.shift();
@@ -205,6 +217,55 @@ test('extension activates, renders HTML and handles canvas messages', async () =
   await send({ type: 'dbt', command: 'build', id: 'stg_b' });
   assert.equal(term.sent.length, 2);
   assert.equal(fake.warnings.filter((w) => w.startsWith('ERR')).length, 0, fake.warnings.join('\n'));
+});
+
+test('a dbt project added after the folder was opened is picked up without a reload', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nodeviz-late-'));
+  fs.writeFileSync(path.join(root, 'README.md'), '# empty repo\n');
+  const fake = makeVscode(root, []);
+  const origLoad = Module._load;
+  Module._load = function (request, ...rest) {
+    if (request === 'vscode') return fake.vscode;
+    return origLoad.call(this, request, ...rest);
+  };
+  delete require.cache[require.resolve('../extension')];
+  const ext = require('../extension');
+  Module._load = origLoad;
+  const graphs = [];
+  let onMessage = null;
+  fake.handlers.webview = {
+    cspSource: 'vscode-resource:',
+    asWebviewUri: (u) => 'vscode-resource:' + u.fsPath,
+    postMessage: (m) => (m.type === 'graph' && graphs.push(m.view), Promise.resolve(true)),
+    onDidReceiveMessage: (fn) => ((onMessage = fn), { dispose() {} }),
+  };
+  const context = {
+    subscriptions: [],
+    extensionUri: { fsPath: path.join(__dirname, '..') },
+    workspaceState: { get: () => undefined, update: async () => {} },
+  };
+  ext.activate(context);
+  await new Promise((r) => setTimeout(r, 700));
+  // No project yet: nothing on screen.
+  assert.equal(fake.handlers.panels.length, 0);
+  assert.equal(fake.handlers.status.shown, false);
+  // Unrelated files do not start anything either.
+  fake.handlers.watchers['**/*.{sql,py,csv,yml,yaml}'].create();
+  await new Promise((r) => setTimeout(r, 600));
+  assert.equal(fake.handlers.panels.length, 0);
+
+  // The project is copied into a subfolder.
+  fs.mkdirSync(path.join(root, 'dbt', 'models'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'dbt', 'dbt_project.yml'), 'name: late\n');
+  fs.writeFileSync(path.join(root, 'dbt', 'models', 'stg_a.sql'), 'select 1 as id\n');
+  fake.handlers.watchers['**/dbt_project.yml'].create();
+  await new Promise((r) => setTimeout(r, 600));
+  assert.equal(fake.handlers.panels.length, 1, 'canvas opens');
+  assert.equal(fake.handlers.status.shown, true);
+  onMessage({ type: 'ready' });
+  await new Promise((r) => setTimeout(r, 20));
+  assert.ok(graphs.at(-1).nodes.some((n) => n.id === 'stg_a'), 'the new project is drawn');
+  for (const s of context.subscriptions) s.dispose && s.dispose();
 });
 
 test('settings: nodeviz.* wins, then an old dbtFlow.* value, then the default', () => {

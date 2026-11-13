@@ -86,7 +86,7 @@ If the canvas does not appear:
 
 - Open it from the **NodeViz** button in the status bar, the NodeViz icon in the title bar of any `.sql` or `.yml` file, or the command palette: **NodeViz: Open Canvas**.
 - More than one dbt project in the folder? Run **NodeViz: Choose dbt Project…**, or set `nodeviz.projectPath`.
-- Added the dbt project *after* opening the folder (for example by copying it into a freshly cloned repo)? Run **Developer: Reload Window** once. NodeViz 0.3.0 only looks for `dbt_project.yml` when the folder opens.
+- Added the dbt project *after* opening the folder (for example by copying it into a freshly cloned repo)? NodeViz notices the new `dbt_project.yml` and opens the canvas (or offers to, if `nodeviz.openOnStartup` is off). If it does not, run **NodeViz: Open Canvas**. NodeViz 0.3.0 needed **Developer: Reload Window** here.
 
 ### 3. Read the canvas
 

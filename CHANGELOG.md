@@ -3,6 +3,7 @@
 ## 0.3.1 (preview)
 
 - **Settings are now `nodeviz.*`** (were `dbtFlow.*`), and the layout file is `.nodeviz.json` (was `.dbtflow.json`). Old settings still work when the new one is not set, and NodeViz says so once. The old layout file is read and moved to `.nodeviz.json` the first time you change something on the canvas. Command ids are `nodeviz.*` too; update any keyboard shortcuts you made for them.
+- **A dbt project added after the folder was opened is found** without reloading the window (for example when you copy a project into a freshly cloned repo). NodeViz now starts in every workspace but stays invisible and idle until there is a `dbt_project.yml`.
 
 ## 0.3.0 (preview)
 

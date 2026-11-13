@@ -37,7 +37,8 @@
     "workspace"
   ],
   "activationEvents": [
-    "workspaceContains:**/dbt_project.yml"
+    "workspaceContains:**/dbt_project.yml",
+    "onStartupFinished"
   ],
   "main": "./extension.js",
   "contributes": {
