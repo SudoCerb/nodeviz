@@ -39,7 +39,7 @@ const FOLDER_RE = /^[\w-]+(\/[\w-]+)*$/;
 const SECTION = 'nodeviz';
 const LEGACY_SECTION = 'dbtFlow';
 const SETTING_KEYS = [
-  'openOnStartup', 'projectPath', 'confirmFileEdits', 'openCreatedFile',
+  'openOnStartup', 'projectPath', 'confirmFileEdits', 'openCreatedFile', 'addToModelsYml',
   'dbt.executable', 'dbt.target', 'dbt.envFile',
   'integrations.dagtracer.enabled', 'integrations.dagtracer.executable', 'integrations.dagtracer.timeoutSeconds',
 ];
@@ -78,6 +78,9 @@ function legacySettingsInUse() {
   const old = vscode.workspace.getConfiguration(LEGACY_SECTION);
   return SETTING_KEYS.filter((k) => userValue(old, k).set).map((k) => `${LEGACY_SECTION}.${k}`);
 }
+
+/** " and added it to _marts__models.yml", or '' when no .yml was touched. */
+const ymlNote = (r) => (r && r.yml && r.yml.length ? ` and added ${r.yml.length > 1 ? 'them' : 'it'} to ${r.yml.join(', ')}` : '');
 
 const affectsSetting = (e, key) =>
   e.affectsConfiguration(`${SECTION}.${key}`) || e.affectsConfiguration(`${LEGACY_SECTION}.${key}`);
@@ -498,8 +501,8 @@ ${uiJs}<script nonce="${nonce}" src="${js}"></script>
         return this.openPath(abs, surface);
       }
       case 'createFile': {
-        const r = m.createFiles([msg.id]);
-        this.report(r, `Created ${msg.id}.sql`);
+        const r = m.createFiles([msg.id], { modelsYml: settings().get('addToModelsYml') });
+        this.report(r, `Created ${msg.id}.sql${ymlNote(r)}`);
         if (r.ok && settings().get('openCreatedFile')) {
           this.openFile(msg.id, surface);
         }
@@ -507,8 +510,8 @@ ${uiJs}<script nonce="${nonce}" src="${js}"></script>
       }
       case 'createAll': {
         const ids = m.getView().nodes.filter((n) => n.kind === 'planned').map((n) => n.id);
-        const r = m.createFiles(ids);
-        return this.report(r, r.ok ? `Created ${ids.length} file${ids.length > 1 ? 's' : ''}` : null);
+        const r = m.createFiles(ids, { modelsYml: settings().get('addToModelsYml') });
+        return this.report(r, r.ok ? `Created ${ids.length} file${ids.length > 1 ? 's' : ''}${ymlNote(r)}` : null);
       }
       case 'selectProject':
         return this.selectProject();

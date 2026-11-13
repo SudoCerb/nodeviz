@@ -4,6 +4,7 @@ const path = require('path');
 const { readConfig, scanProject, folderMaterialization } = require('./project');
 const { generateModelSql, insertDependency, removeImportCte } = require('./sqlgen');
 const { layeredLayout, placeNew } = require('./layout');
+const { addModelEntry, hasModelsKey } = require('./modelsyml');
 
 const STATE_FILE = '.nodeviz.json';
 // Name used up to 0.3.0. Still read; moved to STATE_FILE the first time the canvas saves.
@@ -788,7 +789,25 @@ class FlowModel {
     return path.join(dir.abs, ...(spec.folder ? spec.folder.split('/') : []), name + '.sql');
   }
 
-  createFiles(ids) {
+  /**
+   * The one .yml in `dir` with a top-level models: list (e.g. _marts__models.yml),
+   * or null when there is none or more than one, so NodeViz never has to guess.
+   */
+  modelsYmlIn(dir) {
+    if (!this.io.isDir(dir)) return null;
+    const hits = this.io
+      .listDir(dir)
+      .filter((e) => !e.isDir && /\.ya?ml$/i.test(e.name))
+      .map((e) => path.join(dir, e.name))
+      .filter((abs) => hasModelsKey(this.io.readText(abs)));
+    return hits.length === 1 ? hits[0] : null;
+  }
+
+  /**
+   * opts.modelsYml: also add `- name: <model>` to the folder's models .yml
+   * (see modelsYmlIn). Part of the same undo step.
+   */
+  createFiles(ids, opts = {}) {
     const names = ids.filter((id) => this.nodes.get(id) && this.nodes.get(id).kind === 'planned');
     if (!names.length) return { ok: false, message: 'There are no boxes without a file.' };
     for (const name of names) {
@@ -799,6 +818,7 @@ class FlowModel {
     }
     const label = names.length === 1 ? `Create file ${names[0]}.sql` : `Create ${names.length} files`;
     const created = [];
+    const yml = [];
     return this.transact(label, (write) => {
       // Upstream first, so a model's refs point at files created earlier in the batch.
       const order = names.slice().sort((a, b) => this.depth(a) - this.depth(b));
@@ -812,6 +832,17 @@ class FlowModel {
         const abs = this.targetPath(name);
         write(abs, generateModelSql(deps));
         created.push(abs);
+        if (opts.modelsYml) {
+          const ymlAbs = this.modelsYmlIn(path.dirname(abs));
+          if (ymlAbs && !this.io.isDirty(ymlAbs)) {
+            const r = addModelEntry(this.io.readText(ymlAbs), name);
+            if (r.changed) {
+              write(ymlAbs, r.text);
+              const rel = path.relative(this.cfg.root, ymlAbs).split(path.sep).join('/');
+              if (!yml.includes(rel)) yml.push(rel);
+            }
+          }
+        }
 
         // Downstream models that already have files get the new ref added now.
         for (const e of this.state.plannedEdges.filter((x) => x.from === name)) {
@@ -826,7 +857,7 @@ class FlowModel {
         this.state.plannedEdges = this.state.plannedEdges.filter((x) => x.to !== name && !x.done);
         delete this.state.planned[name];
       }
-      return { ok: true, created };
+      return { ok: true, created, yml };
     });
   }
 

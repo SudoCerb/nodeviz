@@ -228,6 +228,7 @@ Removing a box never deletes a file. A box without a file is deleted; any other 
 | `nodeviz.projectPath` | empty | Folder holding `dbt_project.yml`. Empty means find it automatically. |
 | `nodeviz.confirmFileEdits` | `true` | Ask before adding or changing a `ref()` in an existing file. |
 | `nodeviz.openCreatedFile` | `true` | Open the new file after *Create file*. |
+| `nodeviz.addToModelsYml` | `true` | On *Create file*, add `- name: <model>` with an empty `description` to the folder's models `.yml` (for example `_marts__models.yml`). Only when the folder has exactly one `.yml` with a `models:` list; undo removes it again. |
 | `nodeviz.dbt.executable` | `dbt` | The dbt command, or its full path. |
 | `nodeviz.dbt.target` | empty | Added as `--target` to every dbt command. Empty uses the profile's default. |
 | `nodeviz.dbt.envFile` | empty | A file of `KEY=VALUE` or `export` lines loaded once into the NodeViz terminal. |
@@ -257,6 +258,8 @@ select * from stg_customers
 ```
 
 New boxes go in the folder suggested by their name (`stg_` → staging, `int_` → intermediate, `fct_`/`dim_` → marts), and you can pick another.
+
+If that folder has one models `.yml` (such as `_marts__models.yml`), the new model is added to it as `- name: <model>` with an empty `description:`, ready for you to fill in. Turn this off with `nodeviz.addToModelsYml`.
 
 </details>
 
