@@ -341,12 +341,15 @@
       const line = svg('path', 'line');
       line.setAttribute('stroke', `url(#eg${i})`);
       const pulse = svg('path', 'pulse');
+      // A small arrowhead at the downstream end, so direction shows without knowing the port sides.
+      const arrow = svg('path', 'arrow');
+      arrow.setAttribute('fill', colorOf(byId.get(e.to)));
       const hit = svg('path', 'edge-hit');
       hit.dataset.from = e.from;
       hit.dataset.to = e.to;
-      g.append(line, pulse, hit);
+      g.append(line, pulse, arrow, hit);
       edgeLayer.append(g);
-      edgeEls.push({ e, g, line, pulse, hit, grad });
+      edgeEls.push({ e, g, line, pulse, arrow, hit, grad });
     });
     updateEdges();
     renderChrome();
@@ -380,12 +383,19 @@
   }
 
   function updateEdges(onlyId) {
-    for (const { e, line, pulse, hit, grad } of edgeEls) {
+    for (const { e, line, pulse, arrow, hit, grad } of edgeEls) {
       if (onlyId && e.from !== onlyId && e.to !== onlyId) continue;
       const { d, x1, y1, x2, y2 } = edgeD(pos.get(e.from), pos.get(e.to));
       line.setAttribute('d', d);
       pulse.setAttribute('d', d);
       hit.setAttribute('d', d);
+      // Curves enter along the flow, so the arrow points right (or down when top to bottom).
+      arrow.setAttribute(
+        'd',
+        isTB()
+          ? `M${x2},${y2} L${x2 - 4.5},${y2 - 8} L${x2 + 4.5},${y2 - 8} Z`
+          : `M${x2},${y2} L${x2 - 8},${y2 - 4.5} L${x2 - 8},${y2 + 4.5} Z`
+      );
       // A gradient across zero width is invisible, so give vertical links a nudge.
       grad.setAttribute('x1', x1);
       grad.setAttribute('y1', y1);

@@ -30,9 +30,11 @@ Click any box to light up everything it depends on and everything that depends o
 
 Right-click the canvas to add a box, drag from one box to another to connect them, and choose **Create file**. NodeViz writes the `.sql` file with one import CTE per upstream model, ready for you to fill in.
 
+Drag **from the model you read from, to the model you are building**: the arrow points at the model that reads. A new box moves next to its first input, and NodeViz asks before a connection that looks backwards, with a button to swap it.
+
 ![Sketching a new model and creating its file](images/sketch.gif)
 
-Dragging a connection onto a model that already has a file adds the `ref()` to the top of that file. You are asked first.
+Dragging a connection onto a model that already has a file adds the `ref()` to the top of that file. You are asked first, in plain words: "`fct_orders.sql` will read from `stg_payments`."
 
 ## Run dbt from the canvas
 
@@ -95,7 +97,7 @@ If the canvas does not appear:
 | Box colour | The folder: sources green, staging blue, intermediate purple, marts orange, seeds yellow. **Legend** (bottom left) lists them |
 | Chip on a box | `source`, `seed`, or the materialization set with `config()` in the file (`table`, `view`, `incremental`) |
 | Dot on the left / right | Left: what the box reads from. Right: what reads from it |
-| Solid line | A real `ref()` or `source()` in a file |
+| Solid line | A real `ref()` or `source()` in a file. The arrowhead points at the model that reads |
 | Dashed box, *no file yet* | A planned model you sketched; nothing on disk yet |
 | Dashed line | A planned connection |
 | Red box | A `ref()` to a model that does not exist (deleted or misspelt) |

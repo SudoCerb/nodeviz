@@ -703,14 +703,34 @@ class FlowModel {
       if (to.language === 'python') return { ok: false, message: `Add dbt.ref("${from.name}") to ${to.rel} by hand for now.` };
       if (this.io.isDirty(to.abs)) return { ok: false, message: `Save ${to.rel} first: it has unsaved changes.` };
     }
-    return { ok: true, fileEdit, rel: fileEdit ? to.rel : null, from, to };
+    return { ok: true, fileEdit, rel: fileEdit ? to.rel : null, from, to, suspect: this.likelyReversed(from, to) };
+  }
+
+  /**
+   * Why a connection from → to is probably drawn the wrong way round, or null.
+   * Dragging from the right-hand dot means "to reads from from"; with a new box
+   * placed where you right-clicked, that is easy to get backwards.
+   */
+  likelyReversed(from, to) {
+    if (from.kind === 'planned' && to.kind === 'model') {
+      return `${to.name} already has a file, and ${from.name} does not exist yet. New models usually read from existing ones, not the other way round.`;
+    }
+    const lf = this.layerHint(from.id);
+    const lt = this.layerHint(to.id);
+    if (lf !== null && lt !== null && lf > lt && lt > 0) {
+      return `${from.name} is in ${from.group}/, which usually comes after ${to.group}/.`;
+    }
+    return null;
   }
 
   connect(fromId, toId) {
     const plan = this.planConnect(fromId, toId);
     if (!plan.ok) return plan;
     const { from, to } = plan;
-    return this.transact(`Connect ${from.name} to ${to.name}`, (write) => {
+    // A box without a file that gets its first input moves next to it, downstream,
+    // when it sits upstream of it now (it went where you right-clicked).
+    const firstInput = to.kind === 'planned' && !this.edges.some((e) => e.to === toId);
+    return this.transact(`Connect ${from.name} → ${to.name}`, (write) => {
       if (plan.fileEdit) {
         const sql = this.io.readText(to.abs) || '';
         const { sql: next, changed } = insertDependency(sql, depFor(from));
@@ -718,7 +738,25 @@ class FlowModel {
       } else {
         this.state.plannedEdges.push({ from: fromId, to: toId });
       }
+      const moved = firstInput && this.placeDownstream(fromId, toId);
+      return { ok: true, moved };
     });
+  }
+
+  /** Moves `toId` next to `fromId` on the downstream side if it is not there yet. True if it moved. */
+  placeDownstream(fromId, toId) {
+    const pos = this.state.positions;
+    const a = pos[fromId];
+    const b = pos[toId];
+    if (!a || !b) return false;
+    const tb = this.direction() === 'TB';
+    if (tb ? b.y > a.y : b.x > a.x) return false;
+    const others = {};
+    for (const [id, p] of Object.entries(pos)) {
+      if (id !== toId && this.nodes.has(id) && !this.isHidden(this.nodes.get(id))) others[id] = p;
+    }
+    pos[toId] = placeNew(toId, [...this.edges, { from: fromId, to: toId }], others, this.direction());
+    return true;
   }
 
   disconnect(fromId, toId) {

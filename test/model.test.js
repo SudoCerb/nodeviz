@@ -114,6 +114,34 @@ test('connect between existing files writes a ref, and undo restores the file', 
   assert.match(read(root, 'model/marts/fct_orders.sql'), /ref\('stg_customers'\)/);
 });
 
+test('connections that look reversed are flagged; a new box moves downstream of its first input', () => {
+  const root = fixture(PROJECT);
+  const m = new FlowModel(createNodeIO());
+  m.open(root);
+  // marts → staging is unusual.
+  assert.match(m.planConnect('fct_orders', 'stg_customers').suspect, /comes after/);
+  assert.equal(m.planConnect('stg_customers', 'fct_orders').suspect, null);
+  // A box without a file feeding a model that has one is almost always a mistake.
+  const fct = m.getView().nodes.find((n) => n.id === 'fct_orders');
+  assert.ok(m.createBox('mart_new', { modelDir: 'model', folder: 'marts' }, fct.x - 400, fct.y).ok);
+  assert.match(m.planConnect('mart_new', 'fct_orders').suspect, /does not exist yet/);
+
+  // The right way round: mart_new reads from fct_orders, so it moves to the right of it.
+  const r = m.connect('fct_orders', 'mart_new');
+  assert.ok(r.ok && r.moved, r.message);
+  const box = m.getView().nodes.find((n) => n.id === 'mart_new');
+  assert.ok(box.x > fct.x, `${box.x} > ${fct.x}`);
+  // Connecting and moving is one undo step.
+  assert.ok(m.undo().ok);
+  const back = m.getView();
+  assert.equal(back.nodes.find((n) => n.id === 'mart_new').x, fct.x - 400);
+  assert.ok(!back.edges.some((e) => e.to === 'mart_new'));
+  // A box already downstream stays where it is.
+  m.moveNode('mart_new', fct.x + 600, fct.y + 300);
+  assert.equal(m.connect('fct_orders', 'mart_new').moved, false);
+  assert.equal(m.getView().nodes.find((n) => n.id === 'mart_new').y, fct.y + 300);
+});
+
 test('connect refuses loops and connections into sources', () => {
   const root = fixture(PROJECT);
   const m = new FlowModel(createNodeIO());

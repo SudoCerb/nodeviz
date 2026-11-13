@@ -257,6 +257,21 @@ button.primary svg {
   opacity: 0.12;
 }
 
+.edge .arrow {
+  stroke: none;
+  opacity: 0.85;
+  transition: opacity 140ms;
+}
+
+.edge.hover .arrow,
+.edge.hl .arrow {
+  opacity: 1;
+}
+
+.edge.dim .arrow {
+  opacity: 0.12;
+}
+
 /* Small bright dashes run along the highlighted lineage, in the direction data flows. */
 .edge .pulse {
   stroke: color-mix(in srgb, #ffffff 85%, var(--focus));

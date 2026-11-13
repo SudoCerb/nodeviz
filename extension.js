@@ -572,26 +572,55 @@ ${uiJs}<script nonce="${nonce}" src="${js}"></script>
     if (pick) await this.runDbt(pick.command, null);
   }
 
+  /**
+   * Dragging from a box's right-hand (or bottom) dot onto another box means
+   * "the other box reads from this one". The question says that in words, offers
+   * to swap, and asks first (even with confirmFileEdits off) when the connection
+   * looks reversed, e.g. an existing model reading from a box with no file yet.
+   */
   async connect(from, to) {
     const m = this.model;
     const plan = m.planConnect(from, to);
     if (!plan.ok) return this.report(plan);
     const config = settings();
-    if (plan.fileEdit && config.get('confirmFileEdits')) {
-      const expr = plan.from.kind === 'source'
-        ? `{{ source('${plan.from.source}', '${plan.from.table}') }}`
-        : `{{ ref('${plan.from.name}') }}`;
-      const always = 'Add, and stop asking';
-      const choice = await vscode.window.showInformationMessage(
-        `Add ${expr} to ${plan.rel}?`,
-        { modal: true, detail: 'It goes in as an import CTE at the top of the file. Undo in NodeViz takes it out again.' },
-        'Add ref',
-        always
-      );
+    // A file changes now (fileEdit) or when the box without a file is created.
+    const editsFile = plan.fileEdit || (plan.from.kind === 'planned' && plan.to.kind === 'model');
+    if (plan.suspect || (editsFile && config.get('confirmFileEdits'))) {
+      const choice = await this.askConnect(plan, m.planConnect(to, from).ok);
+      if (choice === 'swap') {
+        return this.report(m.connect(to, from), `Connected: ${plan.from.name} reads from ${plan.to.name}`);
+      }
       if (!choice) return this.broadcast();
-      if (choice === always) await config.update('confirmFileEdits', false, vscode.ConfigurationTarget.Global);
+      if (choice === 'always') await config.update('confirmFileEdits', false, vscode.ConfigurationTarget.Global);
     }
-    this.report(m.connect(from, to), `Connected ${plan.from.name} to ${plan.to.name}`);
+    const r = m.connect(from, to);
+    this.report(r, `Connected: ${plan.to.name} reads from ${plan.from.name}${r.moved ? ` (moved ${plan.to.name} next to it)` : ''}`);
+  }
+
+  /** The connect question. Resolves 'add', 'swap', 'always' or undefined (cancel). */
+  async askConnect(plan, canSwap) {
+    const { from, to } = plan;
+    const expr = from.kind === 'source' ? `{{ source('${from.source}', '${from.table}') }}` : `{{ ref('${from.name}') }}`;
+    const reader = to.rel ? path.basename(to.rel) : to.name;
+    const what = plan.fileEdit
+      ? `Adds ${expr} to ${to.rel} as an import CTE at the top of the file. Undo in NodeViz takes it out again.`
+      : to.kind === 'model'
+        ? `${from.name} has no file yet. When you create it, ${expr} is added to ${to.rel}.`
+        : `${to.name} has no file yet; the ref is written when you create it.`;
+    const swapLine = canSwap ? `\n\nSwap direction: ${from.name} reads from ${to.name} instead.` : '';
+    const detail = (plan.suspect ? `This looks reversed. ${plan.suspect}\n\n` : '') + what + swapLine;
+    const add = plan.fileEdit ? 'Add ref' : 'Connect';
+    const swap = 'Swap direction';
+    const always = 'Add, and stop asking';
+    const buttons = plan.suspect
+      ? [...(canSwap ? [swap] : []), add]
+      : [add, ...(canSwap ? [swap] : []), ...(plan.fileEdit ? [always] : [])];
+    const choice = await vscode.window.showInformationMessage(
+      `${reader} will read from ${from.name}.`,
+      { modal: true, detail },
+      ...buttons
+    );
+    return { [add]: 'add', [swap]: 'swap', [always]: 'always' }[choice];
   }
 
   /** Asks before rewriting other files when refs point at the renamed model. */
