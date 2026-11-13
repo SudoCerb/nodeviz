@@ -56,7 +56,7 @@ Column tracing uses [DAGtracer](#column-tracing-with-dagtracer) (`dgt`), an opti
 
 - **Rename without breaking refs.** Rename a model on the canvas or in Explorer, and NodeViz offers to update every `ref()` to it.
 - **Nothing is deleted by accident.** Removing a box only takes it off the canvas; your files stay. *Show removed boxes* brings them back.
-- **Undo everything.** Ctrl+Z undoes moves, new boxes, connections and file edits. If you changed a file by hand since, it stops and tells you instead of overwriting your work.
+- **Undo everything.** Ctrl+Z undoes moves, new boxes, connections and file edits, one step per press, and says what it undid. If you changed a file by hand since, it stops and tells you instead of overwriting your work.
 - **Broken refs stand out.** A `ref()` to a model that does not exist shows as a red box, with quick fixes on its menu.
 - **Your layout, your way.** Drag boxes anywhere, tidy up with one click, and switch between left-to-right and top-to-bottom flow.
 - **Colours by folder.** `staging`, `intermediate` and `marts` get their usual colours; any other folder gets its own.

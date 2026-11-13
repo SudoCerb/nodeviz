@@ -986,8 +986,12 @@
     }
     const mod = e.ctrlKey || e.metaKey;
     const key = e.key.toLowerCase();
-    if (mod && key === 'z' && !e.shiftKey) post({ type: 'undo' });
-    else if ((mod && key === 'z' && e.shiftKey) || (mod && key === 'y')) post({ type: 'redo' });
+    // Holding Ctrl+Z must not undo step after step: one press, one step.
+    const undoKey = mod && key === 'z' && !e.shiftKey;
+    const redoKey = (mod && key === 'z' && e.shiftKey) || (mod && key === 'y');
+    if ((undoKey || redoKey) && e.repeat) e.preventDefault();
+    else if (undoKey) post({ type: 'undo' });
+    else if (redoKey) post({ type: 'redo' });
     else if (mod && key === 'f') $('search').focus();
     else if (!mod && key === 'f') fit();
     else if (!mod && (key === '+' || key === '=')) zoomCenter(t.k * 1.2);
@@ -1171,6 +1175,10 @@
     } else if (msg.type === 'synced') {
       fit();
       toast(syncSummary(msg.summary), 6000);
+    } else if (msg.type === 'stepped') {
+      // What undo/redo just reverted, and what the next press would do, so a second press is a choice.
+      const next = msg.next ? ` · Next ${msg.verb.toLowerCase()}: ${msg.next}` : '';
+      toast(`${msg.verb === 'Undo' ? 'Undid' : 'Redid'}: ${msg.label}${next}`, 5000);
     } else if (msg.type === 'activeFile') {
       // The extension resends this after every change; only react when the file really changed.
       if (msg.id === activeId) return;

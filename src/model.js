@@ -367,7 +367,8 @@ class FlowModel {
     to.push(entry);
     this.refresh();
     this.saveState();
-    return { ok: true, message: `${verb}: ${entry.label}` };
+    const next = from.length ? from[from.length - 1].label : null;
+    return { ok: true, message: `${verb}: ${entry.label}`, verb, label: entry.label, next };
   }
 
   // ---------------------------------------------------------------- names & folders

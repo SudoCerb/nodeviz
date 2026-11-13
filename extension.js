@@ -467,13 +467,14 @@ ${uiJs}<script nonce="${nonce}" src="${js}"></script>
         for (const s of this.surfaces) s.webview.postMessage({ type: 'synced', summary: r.summary });
         return;
       }
-      case 'undo': {
-        const r = m.undo();
-        return this.report(r, r.ok ? r.message : null);
-      }
+      case 'undo':
       case 'redo': {
-        const r = m.redo();
-        return this.report(r, r.ok ? r.message : null);
+        const r = msg.type === 'undo' ? m.undo() : m.redo();
+        this.report(r, r.ok ? r.message : null);
+        if (r.ok) {
+          for (const s of this.surfaces) s.webview.postMessage({ type: 'stepped', verb: r.verb, label: r.label, next: r.next });
+        }
+        return;
       }
       case 'refresh':
         m.refresh();

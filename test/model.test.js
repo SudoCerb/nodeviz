@@ -142,6 +142,30 @@ test('connections that look reversed are flagged; a new box moves downstream of 
   assert.equal(m.getView().nodes.find((n) => n.id === 'mart_new').y, fct.y + 300);
 });
 
+test('user test 2026-11-13: one undo after a wrong connection keeps the created file', () => {
+  const root = fixture(PROJECT);
+  const m = new FlowModel(createNodeIO());
+  m.open(root);
+  const fctBefore = read(root, 'model/marts/fct_orders.sql');
+  assert.ok(m.createBox('mart_campaign', { modelDir: 'model', folder: 'marts' }, 0, 400).ok);
+  assert.ok(m.connect('stg_orders', 'mart_campaign').ok);
+  assert.ok(m.createFiles(['mart_campaign']).ok);
+  const created = read(root, 'model/marts/mart_campaign.sql');
+  // The wrong way round: fct_orders now reads from the new model.
+  assert.ok(m.connect('mart_campaign', 'fct_orders').ok);
+  assert.match(read(root, 'model/marts/fct_orders.sql'), /ref\('mart_campaign'\)/);
+
+  const r = m.undo();
+  assert.ok(r.ok);
+  assert.deepEqual([r.label, r.next], ['Connect mart_campaign → fct_orders', 'Create file mart_campaign.sql']);
+  assert.equal(read(root, 'model/marts/fct_orders.sql'), fctBefore);
+  assert.equal(read(root, 'model/marts/mart_campaign.sql'), created, 'the created file is still there');
+  assert.equal(m.nodes.get('mart_campaign').kind, 'model');
+  // Only a second undo takes the file away.
+  assert.equal(m.undo().label, 'Create file mart_campaign.sql');
+  assert.ok(!fs.existsSync(path.join(root, 'model/marts/mart_campaign.sql')));
+});
+
 test('connect refuses loops and connections into sources', () => {
   const root = fixture(PROJECT);
   const m = new FlowModel(createNodeIO());
