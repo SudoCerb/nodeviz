@@ -7,6 +7,7 @@
 - **Clearer connection direction.** Connections have arrowheads. The question before a file is changed says it in words ("`fct_orders.sql` will read from `stg_payments`") and has a *Swap direction* button. A connection that looks backwards (an existing model reading from a box with no file yet, or a marts model feeding staging) is questioned even with `nodeviz.confirmFileEdits` off. A new box moves to the right of its first input instead of staying where you right-clicked.
 - **Undo says what it undid.** After Ctrl+Z (or redo) the canvas shows what was reverted and what the next press would revert, so undoing one step too many is a choice. Holding Ctrl+Z no longer repeats. Each canvas action was already one undo step (now covered by a test), so what looked like one undo removing both a connection and a new file was most likely two presses, or a held key.
 - **`dbt clean` in the ▶ menu**, for the stale parse cache behind "unable to infer all dependencies". Run `deps` after it if you use packages.
+- **Materialization from `dbt_project.yml`.** The chip on a box now also shows a folder's `+materialized` from `dbt_project.yml` (the deepest folder wins); `config()` in the file still wins over it. Hover the chip to see where it came from.
 
 ## 0.3.0 (preview)
 

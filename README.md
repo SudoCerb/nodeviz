@@ -95,7 +95,7 @@ If the canvas does not appear:
 | You see | It means |
 | --- | --- |
 | Box colour | The folder: sources green, staging blue, intermediate purple, marts orange, seeds yellow. **Legend** (bottom left) lists them |
-| Chip on a box | `source`, `seed`, or the materialization set with `config()` in the file (`table`, `view`, `incremental`) |
+| Chip on a box | `source`, `seed`, or the materialization (`table`, `view`, `incremental`): from `config()` in the file, otherwise from the folder's `+materialized` in `dbt_project.yml` |
 | Dot on the left / right | Left: what the box reads from. Right: what reads from it |
 | Solid line | A real `ref()` or `source()` in a file. The arrowhead points at the model that reads |
 | Dashed box, *no file yet* | A planned model you sketched; nothing on disk yet |

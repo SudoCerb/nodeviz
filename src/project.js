@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const { parseModel, parseSnapshotBlocks, readPathList } = require('./parser');
+const { parseModel, parseSnapshotBlocks, readPathList, readModelMaterializations } = require('./parser');
 
 const SKIP_DIRS = new Set([
   'node_modules', '.git', '.venv', 'venv', 'env', 'dbt_packages', 'dbt_modules',
@@ -69,14 +69,31 @@ function readConfig(root, io) {
   const modelNames = readPathList(text, 'model-paths') || readPathList(text, 'source-paths') || ['models'];
   const seedNames = readPathList(text, 'seed-paths') || readPathList(text, 'data-paths') || ['seeds'];
   const snapshotNames = readPathList(text, 'snapshot-paths') || ['snapshots'];
+  const projectName = nameMatch ? nameMatch[1] : path.basename(root);
   return {
     root,
     hasProject,
-    projectName: nameMatch ? nameMatch[1] : path.basename(root),
+    projectName,
     modelDirs: modelNames.map((n) => resolveFolder(root, n, io)),
     seedDirs: seedNames.map((n) => resolveFolder(root, n, io)),
     snapshotDirs: snapshotNames.map((n) => resolveFolder(root, n, io)),
+    materializations: readModelMaterializations(text, projectName),
   };
+}
+
+/**
+ * The materialization dbt_project.yml gives a model in `folder` (e.g. 'marts/finance',
+ * relative to its model path): the deepest matching folder setting wins. Null when
+ * the project sets none. A config() in the file itself wins over this.
+ */
+function folderMaterialization(cfg, folder) {
+  const parts = folder ? folder.split('/') : [];
+  let best = null;
+  for (const m of (cfg && cfg.materializations) || []) {
+    if (m.path.length > parts.length || !m.path.every((p, i) => p === parts[i])) continue;
+    if (!best || m.path.length >= best.path.length) best = m;
+  }
+  return best ? best.materialized : null;
 }
 
 function walk(dir, io, onFile, onDir, relBase = '') {
@@ -120,6 +137,12 @@ function scanProject(cfg, io) {
         language: ext === '.py' ? 'python' : 'sql',
         ...parsed,
       };
+      // config() in the file wins; otherwise the folder default from dbt_project.yml.
+      entry.materializedFrom = entry.materialized ? 'file' : null;
+      if (!entry.materialized) {
+        entry.materialized = folderMaterialization(cfg, folder);
+        if (entry.materialized) entry.materializedFrom = 'project';
+      }
       if (models.has(modelName)) duplicates.push(entry.rel);
       else models.set(modelName, entry);
     }, (relDir) => folders.add(md.rel + '\u0000' + relDir));
@@ -159,4 +182,4 @@ function scanProject(cfg, io) {
   return { models, seeds, snapshots, duplicates, folders: folderList };
 }
 
-module.exports = { findProjectRoots, resolveFolder, readConfig, scanProject, toPosix };
+module.exports = { findProjectRoots, resolveFolder, readConfig, scanProject, folderMaterialization, toPosix };

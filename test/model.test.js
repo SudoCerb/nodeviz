@@ -7,7 +7,7 @@ const os = require('os');
 const path = require('path');
 const { FlowModel } = require('../src/model');
 const { createNodeIO } = require('../src/nodeio');
-const { parseModel, readPathList } = require('../src/parser');
+const { parseModel, readPathList, readModelMaterializations } = require('../src/parser');
 const { insertDependency, generateModelSql } = require('../src/sqlgen');
 
 function fixture(files) {
@@ -42,6 +42,57 @@ test('parser handles ref forms, sources, comments and config', () => {
   assert.deepEqual(p.refs.sort(), ['a', 'b', 'c']);
   assert.deepEqual(p.sources, ['raw.events']);
   assert.equal(p.materialized, 'incremental');
+});
+
+test('readModelMaterializations reads folder defaults from dbt_project.yml', () => {
+  const yml = [
+    "name: 'shop'",
+    'models:',
+    '  shop:',
+    '    +materialized: view   # project default',
+    '    marts:',
+    '      +materialized: table',
+    '      finance:',
+    '        materialized: "incremental"',
+    '    staging:',
+    '      +meta:',
+    '        materialized: ignored',
+    '      +tags: ["a"]',
+    '    jinja:',
+    "      +materialized: \"{{ 'table' if target.name == 'prod' else 'view' }}\"",
+    '  some_package:',
+    '    +materialized: ephemeral',
+    'seeds:',
+    '  shop:',
+    '    +materialized: seed',
+  ].join('\n');
+  assert.deepEqual(readModelMaterializations(yml, 'shop'), [
+    { path: [], materialized: 'view' },
+    { path: ['marts'], materialized: 'table' },
+    { path: ['marts', 'finance'], materialized: 'incremental' },
+  ]);
+  assert.deepEqual(readModelMaterializations('name: x\n', 'x'), []);
+});
+
+test('materialization chip: config() in the file wins, then the deepest folder in dbt_project.yml', () => {
+  const root = fixture({
+    ...PROJECT,
+    'dbt_project.yml': "name: 'shop'\nmodels:\n  shop:\n    marts:\n      +materialized: table\n    staging:\n      +materialized: view\n",
+    'model/staging/stg_inc.sql': "{{ config(materialized='incremental') }}\nselect 1\n",
+  });
+  const m = new FlowModel(createNodeIO());
+  m.open(root);
+  const by = (id) => m.getView().nodes.find((n) => n.id === id);
+  // fct_orders has config(materialized='table') itself.
+  assert.deepEqual([by('fct_orders').materialized, by('fct_orders').materializedFrom], ['table', 'file']);
+  assert.deepEqual([by('py_model').materialized, by('py_model').materializedFrom], ['table', 'project']);
+  assert.deepEqual([by('stg_orders').materialized, by('stg_orders').materializedFrom], ['view', 'project']);
+  assert.equal(by('stg_inc').materialized, 'incremental');
+  // A model outside any configured folder gets nothing.
+  assert.equal(by('broken').materialized, null);
+  // A box without a file already knows what it will be.
+  m.createBox('mart_new', { modelDir: 'model', folder: 'marts' }, 0, 0);
+  assert.equal(by('mart_new').materialized, 'table');
 });
 
 test('readPathList reads inline and block lists', () => {

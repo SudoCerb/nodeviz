@@ -309,7 +309,13 @@
       text.append(el('div', 'title', n.name));
       const metaRow = el('div', 'meta');
       metaRow.append(el('span', 'path', meta));
-      if (chip) metaRow.append(el('span', 'chip', chip));
+      if (chip) {
+        const c = el('span', 'chip', chip);
+        if (n.materializedFrom === 'project' && chip === n.materialized) {
+          c.title = `${chip}: set for this folder in dbt_project.yml`;
+        }
+        metaRow.append(c);
+      }
       text.append(metaRow);
       node.append(text);
 

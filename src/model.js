@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const { readConfig, scanProject } = require('./project');
+const { readConfig, scanProject, folderMaterialization } = require('./project');
 const { generateModelSql, insertDependency, removeImportCte } = require('./sqlgen');
 const { layeredLayout, placeNew } = require('./layout');
 
@@ -88,9 +88,12 @@ class FlowModel {
     for (const s of seeds.values()) if (!nodes.has(s.name)) nodes.set(s.name, { ...s, id: s.name, group: '' });
     for (const [name, spec] of Object.entries(this.state.planned)) {
       if (nodes.has(name)) continue; // a file with this name exists now
+      // What dbt_project.yml will make it, so the chip is right before the file exists.
+      const materialized = folderMaterialization(this.cfg, spec.folder || '');
       nodes.set(name, {
         id: name, name, kind: 'planned', modelDir: spec.modelDir, folder: spec.folder || '',
         group: spec.folder ? spec.folder.split('/')[0] : '',
+        materialized, materializedFrom: materialized ? 'project' : null,
       });
     }
 
@@ -257,6 +260,7 @@ class FlowModel {
         group: n.group || '',
         rel: n.rel || null,
         materialized: n.materialized || null,
+        materializedFrom: n.materializedFrom || null,
         language: n.language || null,
         x: p.x,
         y: p.y,

@@ -79,4 +79,46 @@ function readPathList(yml, key) {
   return null;
 }
 
-module.exports = { parseModel, parseSnapshots, parseSnapshotBlocks, readPathList, stripComments };
+/**
+ * Folder defaults for `materialized` from the `models:` block of dbt_project.yml:
+ *
+ *   models:
+ *     shop:                     # the project's own name
+ *       +materialized: view     # → { path: [], materialized: 'view' }
+ *       marts:
+ *         +materialized: table  # → { path: ['marts'], materialized: 'table' }
+ *
+ * `materialized:` without the + counts too. Keys under other names (packages)
+ * are skipped, as are settings nested under other config keys (+meta: ...).
+ * Paths are folders inside the model path. Minimal, indentation-based YAML.
+ */
+function readModelMaterializations(yml, projectName) {
+  const lines = String(yml || '').split(/\r?\n/);
+  const start = lines.findIndex((l) => /^models\s*:\s*(#.*)?$/.test(l));
+  if (start < 0) return [];
+  const out = [];
+  const stack = []; // { indent, key, folder }
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i].replace(/\s+#.*$/, '');
+    if (!line.trim() || /^\s*#/.test(line) || /^\s*-/.test(line)) continue;
+    const indent = line.length - line.trimStart().length;
+    if (indent === 0) break; // the next top-level key
+    const m = /^\s*(['"]?)([^'":#][^:]*?)\1\s*:\s*(.*)$/.exec(line);
+    if (!m) continue; // list items and anything else this reader does not need
+    const key = m[2].trim();
+    const value = m[3].trim().replace(/^['"]|['"]$/g, '');
+    while (stack.length && stack[stack.length - 1].indent >= indent) stack.pop();
+    if (!value) {
+      stack.push({ indent, key, folder: !key.startsWith('+') && key !== 'config' });
+      continue;
+    }
+    const plain = /^\w+$/.test(value); // skips Jinja such as "{{ 'table' if ... }}"
+    if ((key === '+materialized' || key === 'materialized') && plain && stack.length && stack.every((s) => s.folder)) {
+      if (stack[0].key !== projectName) continue;
+      out.push({ path: stack.slice(1).map((s) => s.key), materialized: value });
+    }
+  }
+  return out;
+}
+
+module.exports = { parseModel, parseSnapshots, parseSnapshotBlocks, readPathList, readModelMaterializations, stripComments };
