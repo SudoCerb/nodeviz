@@ -123,7 +123,9 @@ class Controller {
 
   attach(webview, kind, panel) {
     const media = vscode.Uri.joinPath(this.context.extensionUri, 'media');
-    webview.options = { enableScripts: true, localResourceRoots: [media] };
+    const layoutRoot = vscode.Uri.joinPath(this.context.extensionUri, 'src');
+    webview.options = { enableScripts: true, localResourceRoots: [media, layoutRoot] };
+    const layoutJs = webview.asWebviewUri(vscode.Uri.joinPath(layoutRoot, 'layout.js'));
     const nonce = crypto.randomBytes(16).toString('base64');
     const css = webview.asWebviewUri(vscode.Uri.joinPath(media, 'main.css'));
     const js = webview.asWebviewUri(vscode.Uri.joinPath(media, 'main.js'));
@@ -143,6 +145,7 @@ class Controller {
 </head>
 <body data-surface="${kind}">
 <div id="app"></div>
+<script nonce="${nonce}" src="${layoutJs}"></script>
 ${uiJs}<script nonce="${nonce}" src="${js}"></script>
 </body>
 </html>`;
