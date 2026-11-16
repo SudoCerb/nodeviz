@@ -50,7 +50,7 @@ Right-click a box, choose **Trace column…** and pick a column. NodeViz shows w
 
 ![Tracing where the region column stops](images/trace.gif)
 
-Column tracing uses [DAGtracer](#column-tracing-with-dagtracer) (`dgt`), an optional companion tool.
+Column tracing uses [DAGtracer](https://github.com/alexD1990/DAGtracer) (`dgt`), an optional companion tool.
 
 ## And the things you would expect
 
