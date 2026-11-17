@@ -189,29 +189,6 @@
   user-select: text;
 }
 
-.dgt-text-settings {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  margin: 8px 0;
-  font-size: 12px;
-}
-
-.dgt-text-settings label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.dgt-text-size {
-  width: 50px;
-  padding: 2px 4px;
-  color: var(--fg);
-  background: var(--vscode-input-background);
-  border: 1px solid var(--glass-line);
-  border-radius: 4px;
-}
-
 .dgt-row-text { white-space: nowrap; }
 .dgt-wrap .dgt-row-text {
   min-width: 0;

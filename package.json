@@ -153,6 +153,20 @@
           "default": "",
           "description": "A file of KEY=VALUE or export lines (e.g. ~/.databricks.env) loaded once into the NodeViz terminal, like running source on it yourself."
         },
+        "dbtFlow.dagtracer.panel.textSize": {
+          "type": "integer",
+          "default": 12,
+          "minimum": 10,
+          "maximum": 24,
+          "scope": "window",
+          "description": "Text size in pixels in the DAGtracer results panel."
+        },
+        "dbtFlow.dagtracer.panel.wordWrap": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "description": "Wrap long model names and text in the DAGtracer results panel."
+        },
         "dbtFlow.integrations.dagtracer.enabled": {
           "type": "boolean",
           "default": true,

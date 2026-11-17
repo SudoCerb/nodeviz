@@ -31,9 +31,8 @@
     let animate = false;
     let animTimer = null;
     const marks = []; // { outer, line }
-    const saved = api.getState();
-    let textSize = Number.isInteger(saved.textSize) && saved.textSize >= 10 && saved.textSize <= 24 ? saved.textSize : 12;
-    let wordWrap = saved.wordWrap !== false;
+    let textSize = 12;
+    let wordWrap = true;
 
     const panel = api.el('div', 'hud dgt-panel');
     panel.hidden = true;
@@ -46,41 +45,14 @@
       panel.classList.toggle('dgt-wrap', wordWrap);
     }
 
-    function textSettings() {
-      const controls = api.el('div', 'dgt-text-settings');
-      const sizeLabel = api.el('label', '', 'Text size');
-      const size = api.el('input', 'dgt-text-size');
-      size.type = 'number';
-      size.min = '10';
-      size.max = '24';
-      size.step = '1';
-      size.value = String(textSize);
-      size.addEventListener('change', () => {
-        const value = Number(size.value);
-        if (Number.isInteger(value) && value >= 10 && value <= 24) textSize = value;
-        size.value = String(textSize);
-        applyTextSettings();
-        api.setState({ textSize, wordWrap });
-      });
-      sizeLabel.append(size, document.createTextNode('px'));
-      const wrapLabel = api.el('label', '', '');
-      const wrap = api.el('input', 'dgt-word-wrap');
-      wrap.type = 'checkbox';
-      wrap.checked = wordWrap;
-      wrap.addEventListener('change', () => {
-        wordWrap = wrap.checked;
-        applyTextSettings();
-        api.setState({ textSize, wordWrap });
-      });
-      wrapLabel.append(wrap, document.createTextNode('Word wrap'));
-      controls.append(sizeLabel, wrapLabel);
-      panel.append(controls);
-    }
-
     // ---------------------------------------------------------------- hooks
 
     api.on('message', (msg) => {
-      if (msg.type === 'integrations') {
+      if (msg.type === 'dagtracer/settings') {
+        textSize = Number.isInteger(msg.textSize) && msg.textSize >= 10 && msg.textSize <= 24 ? msg.textSize : 12;
+        wordWrap = msg.wordWrap !== false;
+        applyTextSettings();
+      } else if (msg.type === 'integrations') {
         const me = (msg.list || []).find((s) => s.id === 'dagtracer');
         ready = !!me && me.state === 'ready';
       } else if (msg.type === 'dagtracer/started') {
@@ -318,7 +290,6 @@
       close.addEventListener('click', clear);
       h.append(title, close);
       panel.append(h);
-      textSettings();
     }
 
     function sub(text) {

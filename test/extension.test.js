@@ -12,7 +12,8 @@ const Module = require('module');
 function makeVscode(wsRoot, answers) {
   const posted = [];
   const warnings = [];
-  const handlers = { panels: [] };
+  const handlers = { panels: [], configuration: [] };
+  const settings = { projectPath: '', confirmFileEdits: true, openCreatedFile: true, openOnStartup: true };
   const commands = {};
   const emitter = () => () => ({ dispose() {} });
   const vscode = {
@@ -27,7 +28,7 @@ function makeVscode(wsRoot, answers) {
       workspaceFolders: [{ uri: { fsPath: wsRoot } }],
       textDocuments: [],
       getConfiguration: () => ({
-        get: (k) => ({ projectPath: '', confirmFileEdits: true, openCreatedFile: true, openOnStartup: true })[k],
+        get: (k, fallback) => settings[k] === undefined ? fallback : settings[k],
         update: async () => {},
       }),
       createFileSystemWatcher: () => ({ onDidCreate() {}, onDidChange() {}, onDidDelete() {}, dispose() {} }),
@@ -36,7 +37,7 @@ function makeVscode(wsRoot, answers) {
         handlers.rename = fn;
         return { dispose() {} };
       },
-      onDidChangeConfiguration: emitter(),
+      onDidChangeConfiguration: (fn) => { handlers.configuration.push(fn); return { dispose() {} }; },
     },
     window: {
       activeTextEditor: null,
@@ -84,7 +85,7 @@ function makeVscode(wsRoot, answers) {
       },
     },
   };
-  return { vscode, posted, warnings, handlers, commands };
+  return { vscode, posted, warnings, handlers, commands, settings };
 }
 
 test('extension activates, renders HTML and handles canvas messages', async () => {
@@ -111,11 +112,13 @@ test('extension activates, renders HTML and handles canvas messages', async () =
   };
   let onMessage;
   const graphs = [];
+  const traceSettings = [];
   const webview = {
     cspSource: 'vscode-resource:',
     asWebviewUri: (u) => 'vscode-resource:' + u.fsPath,
     postMessage: (m) => {
       if (m.type === 'graph') graphs.push(m.view);
+      if (m.type === 'dagtracer/settings') traceSettings.push(m);
       return Promise.resolve(true);
     },
     onDidReceiveMessage: (fn) => {
@@ -140,7 +143,7 @@ test('extension activates, renders HTML and handles canvas messages', async () =
   assert.equal(fake.handlers.panels.length, 1);
   assert.equal(panel.revealed, 1);
   assert.match(webview.html, /Content-Security-Policy/);
-  assert.match(webview.html, /media\/main\.js/);
+  assert.match(webview.html, /media[\\/]main\.js/);
 
   const send = async (m) => {
     onMessage(m);
@@ -148,6 +151,13 @@ test('extension activates, renders HTML and handles canvas messages', async () =
   };
   await send({ type: 'ready' });
   assert.equal(graphs.at(-1).nodes.length, 1);
+  assert.deepEqual(traceSettings.at(-1), { type: 'dagtracer/settings', textSize: 12, wordWrap: true });
+  fake.settings['dagtracer.panel.textSize'] = 18;
+  fake.settings['dagtracer.panel.wordWrap'] = false;
+  for (const fn of fake.handlers.configuration) fn({ affectsConfiguration: key => key === 'dbtFlow.dagtracer.panel' });
+  assert.deepEqual(traceSettings.at(-1), { type: 'dagtracer/settings', textSize: 18, wordWrap: false });
+  await send({ type: 'ready' });
+  assert.deepEqual(traceSettings.at(-1), { type: 'dagtracer/settings', textSize: 18, wordWrap: false });
 
   await send({ type: 'createBoxAt', x: 0, y: 200 });
   await send({ type: 'createBoxAt', x: 300, y: 100 });

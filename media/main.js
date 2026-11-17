@@ -148,11 +148,10 @@
   const hooks = { message: [], nodeMenu: [], canvasMenu: [], decorate: [], edgesMoved: [], escape: [] };
   let overlayActive = false; // an integration draws on the canvas; lineage highlight steps aside
   let overlayIds = null;
-  const pluginState = saved.pluginState || {};
   // dbt commands the extension can type into its terminal; sent once on 'ready' (src/dbtrun.js).
   let dbtCommands = { project: [], box: {} };
 
-  const persist = () => vscode.setState({ t, selected, hideUnrelated, upstreamDepth, downstreamDepth, rearrangeOnUpdate, pluginState });
+  const persist = () => vscode.setState({ t, selected, hideUnrelated, upstreamDepth, downstreamDepth, rearrangeOnUpdate });
   const post = (msg) => vscode.postMessage(msg);
 
   // ------------------------------------------------------------------ helpers
@@ -1203,8 +1202,6 @@
       centerOn,
       fitTo,
       select,
-      getState: () => pluginState[id] || {},
-      setState(state) { pluginState[id] = state; persist(); },
       setOverlay(active, ids = null) {
         overlayActive = !!active;
         overlayIds = active && ids ? new Set(ids) : null;

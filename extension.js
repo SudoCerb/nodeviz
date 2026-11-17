@@ -338,12 +338,23 @@ ${uiJs}<script nonce="${nonce}" src="${js}"></script>
     this.broadcast();
   }
 
+  sendTraceSettings(surfaces = this.surfaces) {
+    const config = vscode.workspace.getConfiguration('dbtFlow');
+    const settings = {
+      type: 'dagtracer/settings',
+      textSize: config.get('dagtracer.panel.textSize', 12),
+      wordWrap: config.get('dagtracer.panel.wordWrap', true),
+    };
+    for (const surface of surfaces) surface.webview.postMessage(settings);
+  }
+
   async handle(msg, surface) {
     if (msg.type === 'ready') {
       if (!this.model) this.loadProject();
       this.broadcast();
       if (this.integrations) this.integrations.announce();
       surface.webview.postMessage({ type: 'dbtCommands', project: dbtrun.PROJECT_COMMANDS, box: dbtrun.BOX_COMMANDS });
+      this.sendTraceSettings([surface]);
       // A canvas that opens after a trace finished still shows it.
       for (const r of this.integrationResults.values()) surface.webview.postMessage(r);
       return;
@@ -769,6 +780,7 @@ function activate(context) {
       ctl.broadcast();
     }),
     vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('dbtFlow.dagtracer.panel')) ctl.sendTraceSettings();
       if (e.affectsConfiguration('dbtFlow.projectPath')) {
         ctl.loadProject();
         ctl.broadcast();
