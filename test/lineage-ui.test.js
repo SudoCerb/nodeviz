@@ -26,6 +26,26 @@ function canvas(edges, upstreamDepth = null, downstreamDepth = null) {
   return ctx;
 }
 const sorted = set => [...set].sort();
+test('background clicks and completed pans preserve selection and the filtered view', () => {
+  const c = canvas([['a', 'root'], ['root', 'b']], 1, 1);
+  c.applyHighlight();
+  c.viewport = { classList: { remove() {} } };
+  c.select = id => { c.selected = id; c.applyHighlight(); };
+  c.t = { x: 123, y: 456, k: 0.8 };
+  const positions = JSON.stringify([...c.pos]);
+  const start = source.indexOf('  function endDrag(e)');
+  vm.runInContext(source.slice(start, source.indexOf("  viewport.addEventListener('pointerup'", start)), c);
+  for (const moved of [false, true]) {
+    c.drag = { mode: 'pan', moved };
+    c.endDrag({ type: 'pointerup' });
+    assert.equal(c.drag, null);
+    assert.equal(c.selected, 'root');
+    assert.deepEqual(sorted(c.visibleIds), ['a', 'b', 'root']);
+    assert.equal(c.nodeEls.get('unrelated').hidden, true);
+    assert.equal(JSON.stringify([...c.pos]), positions);
+    assert.deepEqual(c.t, { x: 123, y: 456, k: 0.8 });
+  }
+});
 test('editor focus clears a trace and search, selects the model, and centers at readable zoom', () => {
   const c = canvas([['a', 'root'], ['root', 'b']], 0, 0);
   const search = { value: 'unrelated' };

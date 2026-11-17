@@ -293,6 +293,7 @@ button.primary svg {
 /* ------------------------------------------------------------ boxes */
 
 .node {
+  --node-lighten: 0%;
   position: absolute;
   left: 0;
   top: 0;
@@ -306,8 +307,8 @@ button.primary svg {
   border: 1px solid color-mix(in srgb, var(--c) 62%, transparent);
   background: linear-gradient(
     160deg,
-    color-mix(in srgb, var(--c) 17%, var(--card)),
-    color-mix(in srgb, var(--c) 6%, var(--card)) 70%
+    color-mix(in srgb, white var(--node-lighten), color-mix(in srgb, var(--c) 17%, var(--card))),
+    color-mix(in srgb, white var(--node-lighten), color-mix(in srgb, var(--c) 6%, var(--card))) 70%
   );
   box-shadow:
     0 0 calc(20px * var(--glow)) color-mix(in srgb, var(--c) calc(30% * var(--glow)), transparent),
@@ -398,7 +399,7 @@ button.primary svg {
 /* Boxes without a file: an outline waiting to be filled in. */
 .node.k-planned {
   border: 1.5px dashed color-mix(in srgb, var(--c) 80%, transparent);
-  background: color-mix(in srgb, var(--c) 5%, var(--canvas));
+  background: color-mix(in srgb, white var(--node-lighten), color-mix(in srgb, var(--c) 5%, var(--canvas)));
   box-shadow: none;
 }
 
@@ -416,7 +417,7 @@ button.primary svg {
 .node.k-missing {
   --c: var(--vscode-errorForeground, #f85149);
   border: 1.5px dashed var(--c);
-  background: color-mix(in srgb, var(--c) 7%, var(--canvas));
+  background: color-mix(in srgb, white var(--node-lighten), color-mix(in srgb, var(--c) 7%, var(--canvas)));
 }
 
 .node.k-missing .title {
@@ -424,6 +425,7 @@ button.primary svg {
 }
 
 .node.selected {
+  --node-lighten: 50%;
   border-color: var(--c);
   box-shadow:
     0 0 0 1.5px var(--c),
@@ -447,8 +449,8 @@ button.primary svg {
   border-color: var(--c);
   background: linear-gradient(
     160deg,
-    color-mix(in srgb, var(--c) 32%, var(--card)),
-    color-mix(in srgb, var(--c) 16%, var(--card)) 70%
+    color-mix(in srgb, white var(--node-lighten), color-mix(in srgb, var(--c) 32%, var(--card))),
+    color-mix(in srgb, white var(--node-lighten), color-mix(in srgb, var(--c) 16%, var(--card))) 70%
   );
   box-shadow:
     0 0 calc(40px * var(--glow) + 6px) color-mix(in srgb, var(--c) calc(55% * var(--glow) + 20%), transparent),
@@ -467,6 +469,16 @@ button.primary svg {
     0 0 0 1.5px var(--c),
     0 0 calc(40px * var(--glow) + 6px) color-mix(in srgb, var(--c) calc(55% * var(--glow) + 20%), transparent),
     inset 0 1px 0 color-mix(in srgb, #ffffff 10%, transparent);
+}
+
+body.vscode-dark .node.selected,
+body.vscode-high-contrast .node.selected {
+  --node-lighten: 0%;
+  border-color: #e6e6e6;
+  box-shadow:
+    0 0 0 1.5px #e6e6e6,
+    0 0 calc(34px * var(--glow) + 2px) color-mix(in srgb, var(--c) calc(55% * var(--glow) + 15%), transparent),
+    inset 0 1px 0 color-mix(in srgb, #ffffff 9%, transparent);
 }
 
 .node.match {

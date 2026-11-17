@@ -951,9 +951,7 @@
     const d = drag;
     drag = null;
     viewport.classList.remove('panning', 'connecting');
-    if (d.mode === 'pan') {
-      if (!d.moved) select(null);
-    } else if (d.mode === 'node') {
+    if (d.mode === 'node') {
       const node = nodeEls.get(d.id);
       if (node) node.classList.remove('dragging');
       if (!d.moved) {
