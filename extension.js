@@ -121,6 +121,20 @@ class Controller {
 
   // ------------------------------------------------------------ webviews
 
+  openEditorModel(uri) {
+    // Capture the editor before revealing the webview changes the active editor.
+    const target = uri && uri.fsPath ? uri : vscode.window.activeTextEditor?.document.uri;
+    if (!this.model) this.loadProject();
+    const node = target && this.model && [...this.model.nodes.values()]
+      .find(n => n.kind === 'model' && n.abs === target.fsPath);
+    this.openPanel();
+    if (!node) return;
+    const surface = [...this.surfaces].find(s => s.panel === this.panel);
+    if (!surface) return;
+    if (surface.ready) surface.webview.postMessage({ type: 'focusModel', id: node.id });
+    else surface.pendingFocus = node.id;
+  }
+
   attach(webview, kind, panel) {
     const media = vscode.Uri.joinPath(this.context.extensionUri, 'media');
     const layoutRoot = vscode.Uri.joinPath(this.context.extensionUri, 'src');
@@ -348,6 +362,15 @@ ${uiJs}<script nonce="${nonce}" src="${js}"></script>
     for (const surface of surfaces) surface.webview.postMessage(settings);
   }
 
+  sendLineageSettings(surfaces = this.surfaces) {
+    const config = vscode.workspace.getConfiguration('dbtFlow');
+    for (const surface of surfaces) surface.webview.postMessage({
+      type: 'lineageSettings',
+      upstreamDepth: config.get('lineage.upstreamDepth', 2),
+      downstreamDepth: config.get('lineage.downstreamDepth', 1),
+    });
+  }
+
   async handle(msg, surface) {
     if (msg.type === 'ready') {
       if (!this.model) this.loadProject();
@@ -355,8 +378,14 @@ ${uiJs}<script nonce="${nonce}" src="${js}"></script>
       if (this.integrations) this.integrations.announce();
       surface.webview.postMessage({ type: 'dbtCommands', project: dbtrun.PROJECT_COMMANDS, box: dbtrun.BOX_COMMANDS });
       this.sendTraceSettings([surface]);
+      this.sendLineageSettings([surface]);
       // A canvas that opens after a trace finished still shows it.
       for (const r of this.integrationResults.values()) surface.webview.postMessage(r);
+      surface.ready = true;
+      if (surface.pendingFocus) {
+        surface.webview.postMessage({ type: 'focusModel', id: surface.pendingFocus });
+        surface.pendingFocus = null;
+      }
       return;
     }
     if (msg.type === 'integrationForget') {
@@ -747,7 +776,7 @@ function activate(context) {
 
   context.subscriptions.push(
     status,
-    vscode.commands.registerCommand('dbtFlow.openPanel', () => ctl.openPanel()),
+    vscode.commands.registerCommand('dbtFlow.openPanel', (uri) => ctl.openEditorModel(uri)),
     vscode.commands.registerCommand('dbtFlow.refresh', () => {
       ctl.loadProject(ctl.model ? ctl.model.cfg.root : undefined);
       ctl.broadcast();
@@ -781,6 +810,7 @@ function activate(context) {
     }),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('dbtFlow.dagtracer.panel')) ctl.sendTraceSettings();
+      if (e.affectsConfiguration('dbtFlow.lineage')) ctl.sendLineageSettings();
       if (e.affectsConfiguration('dbtFlow.projectPath')) {
         ctl.loadProject();
         ctl.broadcast();

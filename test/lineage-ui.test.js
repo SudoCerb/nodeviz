@@ -10,7 +10,7 @@ function canvas(edges, upstreamDepth = null, downstreamDepth = null) {
   const element = () => ({ hidden: false, style: {}, classList: { toggle() {} } });
   const ctx = {
     view: { edges: edges.map(([from, to]) => ({ from, to })), nodes: [...ids].map((id, i) => ({ id, x: i * 3000, y: i * 900 })) },
-    upstreamDepth, downstreamDepth, selected: 'root', hideUnrelated: true, overlayActive: false, overlayIds: null,
+    upstreamDepth, downstreamDepth, selected: 'root', showAll: false, overlayActive: false, overlayIds: null,
     query: '', activeId: null, visibleIds: null, rearrangeOnUpdate: true, layoutKey: null, layoutApplied: false,
     edgeLayer: { setAttribute() {} }, MAX_GLOW_EDGES: 400,
     window: { NodeVizLayout: require('../src/layout') }, updateEdges() {}, fit() {},
@@ -26,6 +26,36 @@ function canvas(edges, upstreamDepth = null, downstreamDepth = null) {
   return ctx;
 }
 const sorted = set => [...set].sort();
+test('editor focus clears a trace and search, selects the model, and centers at readable zoom', () => {
+  const c = canvas([['a', 'root'], ['root', 'b']], 0, 0);
+  const search = { value: 'unrelated' };
+  c.$ = () => search;
+  c.query = search.value;
+  c.overlayActive = true;
+  c.overlayIds = new Set(['unrelated']);
+  c.runHooks = name => {
+    assert.equal(name, 'escape');
+    c.overlayActive = false;
+    c.overlayIds = null;
+  };
+  c.select = id => { c.selected = id; c.applyHighlight(); };
+  c.t = { x: 0, y: 0, k: 0.2 };
+  c.viewport = { getBoundingClientRect: () => ({ width: 1000, height: 600 }) };
+  c.applyTransform = () => {};
+  const start = source.indexOf('  function focusModel(id)');
+  vm.runInContext(source.slice(start, source.indexOf('  let toastTimer', start)), c);
+  c.focusModel('root');
+  assert.equal(c.selected, 'root');
+  assert.equal(c.query, '');
+  assert.equal(search.value, '');
+  assert.deepEqual(sorted(c.visibleIds), ['root']);
+  assert.equal(c.t.k, 1);
+  const p = c.pos.get('root');
+  assert.equal(c.t.x + (p.x + c.W / 2) * c.t.k, 500);
+  assert.equal(c.t.y + (p.y + c.H / 2) * c.t.k, 300);
+  c.focusModel('missing');
+  assert.equal(c.selected, 'root');
+});
 test('column traces filter and lay out trace nodes, retain boundaries, and restore the canvas', () => {
   const c = canvas([['a', 'root'], ['root', 'stop'], ['unrelated', 'other']], 0, 0);
   c.overlayActive = true;
@@ -37,10 +67,10 @@ test('column traces filter and lay out trace nodes, retain boundaries, and resto
   assert.equal(c.nodeEls.get('stop').hidden, false);
   assert.equal(c.edgeEls[2].g.style.display, 'none');
   assert.equal(c.layoutApplied, true);
-  c.hideUnrelated = false;
+  c.showAll = true;
   c.applyHighlight();
   assert.equal(c.visibleIds, null);
-  c.hideUnrelated = true;
+  c.showAll = false;
   c.overlayActive = false;
   c.overlayIds = null;
   c.applyHighlight();
@@ -66,7 +96,7 @@ test('shortest paths through diamonds and cycles respect the depth boundary', ()
   assert.deepEqual(sorted(c.lineage('root').down), ['a', 'b', 'c']);
 });
 test('clearing selection, disabling filter, and overlays restore all nodes and edges', () => {
-  for (const change of [c => c.selected = null, c => c.hideUnrelated = false, c => c.overlayActive = true]) {
+  for (const change of [c => c.selected = null, c => c.showAll = true, c => c.overlayActive = true]) {
     const c = canvas([['a', 'root'], ['unrelated', 'other']], 0, 0);
     c.applyHighlight();
     assert.deepEqual(sorted(c.visibleIds), ['root']);

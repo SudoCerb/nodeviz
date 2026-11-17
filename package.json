@@ -153,6 +153,20 @@
           "default": "",
           "description": "A file of KEY=VALUE or export lines (e.g. ~/.databricks.env) loaded once into the NodeViz terminal, like running source on it yourself."
         },
+        "dbtFlow.lineage.upstreamDepth": {
+          "type": ["integer", "null"],
+          "default": 2,
+          "minimum": 0,
+          "scope": "window",
+          "description": "Default upstream levels shown when focusing a model. Use 0 for none or null for all levels."
+        },
+        "dbtFlow.lineage.downstreamDepth": {
+          "type": ["integer", "null"],
+          "default": 1,
+          "minimum": 0,
+          "scope": "window",
+          "description": "Default downstream levels shown when focusing a model. Use 0 for none or null for all levels."
+        },
         "dbtFlow.dagtracer.panel.textSize": {
           "type": "integer",
           "default": 12,

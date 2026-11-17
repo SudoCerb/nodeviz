@@ -62,7 +62,7 @@
       <button class="primary" id="btn-create-all" hidden></button>
     </header>
     <section class="lineage-controls" aria-label="Lineage view">
-      <label class="lineage-toggle"><input id="hide-unrelated" type="checkbox"> Hide unrelated</label>
+      <label class="lineage-toggle"><input id="show-all" type="checkbox"> Show all</label>
       <label>Upstream <input id="upstream-depth" type="number" min="0" step="1" placeholder="All" aria-label="Upstream depth" title="Number of upstream levels. Empty means all; 0 means none."></label>
       <label>Downstream <input id="downstream-depth" type="number" min="0" step="1" placeholder="All" aria-label="Downstream depth" title="Number of downstream levels. Empty means all; 0 means none."></label>
       <label><input id="rearrange-on-update" type="checkbox"> Rearrange on update</label>
@@ -129,10 +129,10 @@
   let t = saved.t || { x: 0, y: 0, k: 1 };
   const hadSavedView = !!saved.t;
   let selected = saved.selected || null;
-  let hideUnrelated = saved.hideUnrelated === true;
+  let showAll = saved.showAll === true;
   const validDepth = (v) => Number.isSafeInteger(v) && v >= 0 ? v : null;
-  let upstreamDepth = validDepth(saved.upstreamDepth);
-  let downstreamDepth = validDepth(saved.downstreamDepth);
+  let upstreamDepth = 2;
+  let downstreamDepth = 1;
   let rearrangeOnUpdate = saved.rearrangeOnUpdate !== false;
   let layoutKey = null;
   let layoutApplied = false;
@@ -151,7 +151,7 @@
   // dbt commands the extension can type into its terminal; sent once on 'ready' (src/dbtrun.js).
   let dbtCommands = { project: [], box: {} };
 
-  const persist = () => vscode.setState({ t, selected, hideUnrelated, upstreamDepth, downstreamDepth, rearrangeOnUpdate });
+  const persist = () => vscode.setState({ t, selected, showAll, rearrangeOnUpdate });
   const post = (msg) => vscode.postMessage(msg);
 
   // ------------------------------------------------------------------ helpers
@@ -245,6 +245,17 @@
       y: fitsY ? (r.height - (maxY - minY) * k) / 2 - minY * k : isTB() ? 56 - minY * k : r.height / 2 - ((minY + maxY) / 2) * k,
     };
     applyTransform();
+  }
+
+  function focusModel(id) {
+    if (!pos.has(id)) return;
+    runHooks('escape');
+    query = '';
+    $('search').value = '';
+    activeId = id;
+    select(id);
+    t.k = Math.max(t.k, 1);
+    centerOn(id);
   }
 
   function centerOn(id) {
@@ -668,7 +679,7 @@
       lin = lineage(selected);
       focus = new Set([selected, ...lin.up, ...lin.down]);
     }
-    visibleIds = hideUnrelated ? (overlayActive ? overlayIds : focus) : null;
+    visibleIds = !showAll ? (overlayActive ? overlayIds : focus) : null;
     for (const [id, node] of nodeEls) {
       node.hidden = !!visibleIds && !visibleIds.has(id);
       const match = q && id.toLowerCase().includes(q);
@@ -1088,11 +1099,11 @@
     rearrangeOnUpdate = $('rearrange-on-update').checked;
     applyHighlight();
   });
-  $('hide-unrelated').checked = hideUnrelated;
+  $('show-all').checked = showAll;
   $('upstream-depth').value = upstreamDepth ?? '';
   $('downstream-depth').value = downstreamDepth ?? '';
-  $('hide-unrelated').addEventListener('change', () => {
-    hideUnrelated = $('hide-unrelated').checked;
+  $('show-all').addEventListener('change', () => {
+    showAll = $('show-all').checked;
     applyHighlight();
     if (selected) fit();
   });
@@ -1253,6 +1264,14 @@
     } else if (msg.type === 'synced') {
       fit();
       toast(syncSummary(msg.summary), 6000);
+    } else if (msg.type === 'lineageSettings') {
+      upstreamDepth = msg.upstreamDepth === null ? null : validDepth(msg.upstreamDepth) ?? 2;
+      downstreamDepth = msg.downstreamDepth === null ? null : validDepth(msg.downstreamDepth) ?? 1;
+      $('upstream-depth').value = upstreamDepth ?? '';
+      $('downstream-depth').value = downstreamDepth ?? '';
+      applyHighlight();
+    } else if (msg.type === 'focusModel') {
+      focusModel(msg.id);
     } else if (msg.type === 'activeFile') {
       // The extension resends this after every change; only react when the file really changed.
       if (msg.id === activeId) return;

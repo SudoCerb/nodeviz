@@ -113,12 +113,16 @@ test('extension activates, renders HTML and handles canvas messages', async () =
   let onMessage;
   const graphs = [];
   const traceSettings = [];
+  const lineageSettings = [];
+  const focusedModels = [];
   const webview = {
     cspSource: 'vscode-resource:',
     asWebviewUri: (u) => 'vscode-resource:' + u.fsPath,
     postMessage: (m) => {
       if (m.type === 'graph') graphs.push(m.view);
       if (m.type === 'dagtracer/settings') traceSettings.push(m);
+      if (m.type === 'lineageSettings') lineageSettings.push(m);
+      if (m.type === 'focusModel') focusedModels.push(m.id);
       return Promise.resolve(true);
     },
     onDidReceiveMessage: (fn) => {
@@ -139,7 +143,8 @@ test('extension activates, renders HTML and handles canvas messages', async () =
   assert.deepEqual(panel.showOptions, { viewColumn: 2, preserveFocus: true });
   assert.equal(panel.options.retainContextWhenHidden, true);
   // The command focuses the existing tab instead of opening a second one.
-  fake.commands['dbtFlow.openPanel']();
+  fake.commands['dbtFlow.openPanel'](fake.vscode.Uri.file(path.join(root, 'models', 'staging', 'stg_a.sql')));
+  assert.deepEqual(focusedModels, [], 'focus waits for the canvas ready message');
   assert.equal(fake.handlers.panels.length, 1);
   assert.equal(panel.revealed, 1);
   assert.match(webview.html, /Content-Security-Policy/);
@@ -151,12 +156,25 @@ test('extension activates, renders HTML and handles canvas messages', async () =
   };
   await send({ type: 'ready' });
   assert.equal(graphs.at(-1).nodes.length, 1);
+  assert.deepEqual(lineageSettings.at(-1), { type: 'lineageSettings', upstreamDepth: 2, downstreamDepth: 1 });
+  fake.settings['lineage.upstreamDepth'] = 0;
+  fake.settings['lineage.downstreamDepth'] = null;
+  for (const fn of fake.handlers.configuration) fn({ affectsConfiguration: key => key === 'dbtFlow.lineage' });
+  assert.deepEqual(lineageSettings.at(-1), { type: 'lineageSettings', upstreamDepth: 0, downstreamDepth: null });
+  assert.deepEqual(focusedModels, ['stg_a']);
+  fake.vscode.window.activeTextEditor = { document: { uri: fake.vscode.Uri.file(path.join(root, 'models', 'staging', 'stg_a.sql')) } };
+  fake.commands['dbtFlow.openPanel']();
+  assert.deepEqual(focusedModels, ['stg_a', 'stg_a'], 'an existing canvas focuses immediately using the active editor');
+  fake.commands['dbtFlow.openPanel'](fake.vscode.Uri.file(path.join(root, 'unrelated.sql')));
+  assert.equal(focusedModels.length, 2, 'an explicit unrelated file does not focus another editor model');
+  fake.vscode.window.activeTextEditor = null;
   assert.deepEqual(traceSettings.at(-1), { type: 'dagtracer/settings', textSize: 12, wordWrap: true });
   fake.settings['dagtracer.panel.textSize'] = 18;
   fake.settings['dagtracer.panel.wordWrap'] = false;
   for (const fn of fake.handlers.configuration) fn({ affectsConfiguration: key => key === 'dbtFlow.dagtracer.panel' });
   assert.deepEqual(traceSettings.at(-1), { type: 'dagtracer/settings', textSize: 18, wordWrap: false });
   await send({ type: 'ready' });
+  assert.equal(focusedModels.length, 2, 'pending focus is consumed once');
   assert.deepEqual(traceSettings.at(-1), { type: 'dagtracer/settings', textSize: 18, wordWrap: false });
 
   await send({ type: 'createBoxAt', x: 0, y: 200 });
