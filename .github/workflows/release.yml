@@ -61,7 +61,9 @@ jobs:
           fi
 
       - name: Package
-        run: npx --yes @vscode/vsce@latest package --out "nodeviz-$RELEASE_VERSION.vsix"
+        # --githubBranch main: README images on the Marketplace point at main,
+        # whatever the repository's default branch is.
+        run: npx --yes @vscode/vsce@latest package --githubBranch main --out "nodeviz-$RELEASE_VERSION.vsix"
 
       - name: Commit and tag
         run: |

@@ -1,14 +1,15 @@
 name: CI
 
-# Every push and every pull request into main: run the tests and check that
-# the extension packages. The .vsix is kept as a build artifact for 14 days,
-# so any commit can be installed and tried without building it locally.
+# Every push, and every pull request into dev or main: run the tests and check
+# that the extension packages. The .vsix is kept as a build artifact for 14
+# days, so any commit can be installed and tried without building it locally.
+# Contributions go to dev; dev is merged into main for each release.
 
 on:
   push:
     branches: ['**']
   pull_request:
-    branches: [main]
+    branches: [dev, main]
 
 permissions:
   contents: read
