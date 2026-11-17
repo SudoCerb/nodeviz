@@ -39,13 +39,17 @@ test('dagtracer add-on: menu, overlay, panel, Esc and the absent case', () => {
   const viewport = new El('main', 'viewport');
   const edgeLayer = new El('g');
   const hooks = {}; const posted = []; const toasts = []; let overlay = null; let fitted = null;
+  let preferences = { textSize: 16, wordWrap: false };
+  let overlayIds = null;
   plugin.init({
+    getState: () => preferences,
+    setState: (state) => { preferences = state; },
     on: (n, fn) => (hooks[n] = hooks[n] || []).push(fn),
     post: (type, p = {}) => posted.push({ ...p, type: `dagtracer/${type}` }),
     forget: () => posted.push({ type: 'integrationForget', id: 'dagtracer' }),
     view: () => view, nodeEl: (id) => nodeEls.get(id), edges: () => edgeEls, edgeLayer, viewport,
     toast: (t) => toasts.push(t), el: (t, c, txt) => { const e = new El(t, c); if (txt != null) e.textContent = txt; return e; }, svg: (t, c) => new El(t, c),
-    centerOn: () => {}, fitTo: (x) => (fitted = x), select: () => {}, setOverlay: (a) => (overlay = a),
+    centerOn: () => {}, fitTo: (x) => (fitted = x), select: () => {}, setOverlay: (a, ids) => { overlay = a; overlayIds = ids; },
   });
   const fire = (name, ...a) => (hooks[name] || []).map((fn) => fn(...a));
   const panel = viewport.children[0];
@@ -62,6 +66,20 @@ test('dagtracer add-on: menu, overlay, panel, Esc and the absent case', () => {
   fire('message', { type: 'dagtracer/started', column: 'region', direction: 'both', starts: ['prep2'] });
   assert.equal(panel.hidden, false);
   assert.match(panel.textContent, /From prep2, up and down\. Running dgt/);
+  assert.equal(panel.style.props['--dgt-text-size'], '16px');
+  assert.equal(panel.classList.contains('dgt-wrap'), false);
+  const size = panel.querySelectorAll('.dgt-text-size')[0];
+  size.value = '20';
+  size.listeners.change();
+  assert.equal(preferences.textSize, 20);
+  size.value = '100';
+  size.listeners.change();
+  assert.equal(size.value, '20');
+  const wrap = panel.querySelectorAll('.dgt-word-wrap')[0];
+  wrap.checked = true;
+  wrap.listeners.change();
+  assert.equal(preferences.wordWrap, true);
+  assert.equal(panel.classList.contains('dgt-wrap'), true);
 
   // Real result shape from the integration (prep2 region both).
   const trace = {
@@ -73,6 +91,8 @@ test('dagtracer add-on: menu, overlay, panel, Esc and the absent case', () => {
   };
   fire('message', { type: 'dagtracer/result', request: { column: 'region', direction: 'both', starts: ['prep2'] }, trace, absent: null, skipped: [], errors: [] });
   assert.equal(overlay, true);
+  assert.deepEqual(overlayIds.sort(), Object.keys(trace.nodes).sort());
+  assert.equal(panel.querySelectorAll('.dgt-text-size')[0].value, '20');
   assert.deepEqual(fitted.sort(), Object.keys(trace.nodes).sort());
   const cls = (id) => [...nodeEls.get(id).classList.s].filter((c) => c.startsWith('dgt')).sort().join(' ');
   assert.equal(cls('prep2'), 'dgt-has dgt-start');
@@ -129,6 +149,7 @@ test('dagtracer add-on: never adds menu items before DAGtracer is ready', () => 
   const hooks = {};
   const viewport = new El('main');
   plugin.init({
+    getState: () => ({}), setState() {},
     on: (n, fn) => (hooks[n] = hooks[n] || []).push(fn), post() {}, forget() {}, view: () => null, nodeEl: () => null,
     edges: () => [], edgeLayer: new El('g'), viewport, toast() {}, el: (t, c, txt) => { const e = new El(t, c); if (txt != null) e.textContent = txt; return e; }, svg: (t, c) => new El(t, c),
     centerOn() {}, fitTo() {}, select() {}, setOverlay() {},

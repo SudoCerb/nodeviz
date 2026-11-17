@@ -147,10 +147,12 @@
   // Integration UIs (media/integrations/*.js) hook in here; see "integrations" below.
   const hooks = { message: [], nodeMenu: [], canvasMenu: [], decorate: [], edgesMoved: [], escape: [] };
   let overlayActive = false; // an integration draws on the canvas; lineage highlight steps aside
+  let overlayIds = null;
+  const pluginState = saved.pluginState || {};
   // dbt commands the extension can type into its terminal; sent once on 'ready' (src/dbtrun.js).
   let dbtCommands = { project: [], box: {} };
 
-  const persist = () => vscode.setState({ t, selected, hideUnrelated, upstreamDepth, downstreamDepth, rearrangeOnUpdate });
+  const persist = () => vscode.setState({ t, selected, hideUnrelated, upstreamDepth, downstreamDepth, rearrangeOnUpdate, pluginState });
   const post = (msg) => vscode.postMessage(msg);
 
   // ------------------------------------------------------------------ helpers
@@ -631,7 +633,7 @@
   }
 
   function updateVisibleLayout() {
-    const enabled = rearrangeOnUpdate && !overlayActive;
+    const enabled = rearrangeOnUpdate && (!overlayActive || !!overlayIds);
     const nodes = view.nodes.filter(n => !visibleIds || visibleIds.has(n.id));
     const edges = view.edges.filter(e => !visibleIds || (visibleIds.has(e.from) && visibleIds.has(e.to)));
     const key = JSON.stringify([enabled, selected, upstreamDepth, downstreamDepth, view.direction,
@@ -667,7 +669,7 @@
       lin = lineage(selected);
       focus = new Set([selected, ...lin.up, ...lin.down]);
     }
-    visibleIds = hideUnrelated && focus ? focus : null;
+    visibleIds = hideUnrelated ? (overlayActive ? overlayIds : focus) : null;
     for (const [id, node] of nodeEls) {
       node.hidden = !!visibleIds && !visibleIds.has(id);
       const match = q && id.toLowerCase().includes(q);
@@ -686,7 +688,7 @@
     }
     const layoutChanged = updateVisibleLayout();
     $('lineage-status').textContent = overlayActive
-      ? 'Lineage filter paused during column trace'
+      ? `${visibleIds ? view.nodes.filter(n => visibleIds.has(n.id)).length : view.nodes.length} of ${view.nodes.length} models shown · Column trace`
       : selected ? `${visibleIds ? visibleIds.size : view.nodes.length} of ${view.nodes.length} models shown`
       : 'Select a model to focus its lineage';
     updateDeleteButton();
@@ -1201,8 +1203,11 @@
       centerOn,
       fitTo,
       select,
-      setOverlay(active) {
+      getState: () => pluginState[id] || {},
+      setState(state) { pluginState[id] = state; persist(); },
+      setOverlay(active, ids = null) {
         overlayActive = !!active;
+        overlayIds = active && ids ? new Set(ids) : null;
         if (view) applyHighlight();
       },
     });

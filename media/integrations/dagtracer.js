@@ -31,11 +31,51 @@
     let animate = false;
     let animTimer = null;
     const marks = []; // { outer, line }
+    const saved = api.getState();
+    let textSize = Number.isInteger(saved.textSize) && saved.textSize >= 10 && saved.textSize <= 24 ? saved.textSize : 12;
+    let wordWrap = saved.wordWrap !== false;
 
     const panel = api.el('div', 'hud dgt-panel');
     panel.hidden = true;
     panel.addEventListener('wheel', (e) => e.stopPropagation());
     api.viewport.append(panel);
+    applyTextSettings();
+
+    function applyTextSettings() {
+      panel.style.setProperty('--dgt-text-size', `${textSize}px`);
+      panel.classList.toggle('dgt-wrap', wordWrap);
+    }
+
+    function textSettings() {
+      const controls = api.el('div', 'dgt-text-settings');
+      const sizeLabel = api.el('label', '', 'Text size');
+      const size = api.el('input', 'dgt-text-size');
+      size.type = 'number';
+      size.min = '10';
+      size.max = '24';
+      size.step = '1';
+      size.value = String(textSize);
+      size.addEventListener('change', () => {
+        const value = Number(size.value);
+        if (Number.isInteger(value) && value >= 10 && value <= 24) textSize = value;
+        size.value = String(textSize);
+        applyTextSettings();
+        api.setState({ textSize, wordWrap });
+      });
+      sizeLabel.append(size, document.createTextNode('px'));
+      const wrapLabel = api.el('label', '', '');
+      const wrap = api.el('input', 'dgt-word-wrap');
+      wrap.type = 'checkbox';
+      wrap.checked = wordWrap;
+      wrap.addEventListener('change', () => {
+        wordWrap = wrap.checked;
+        applyTextSettings();
+        api.setState({ textSize, wordWrap });
+      });
+      wrapLabel.append(wrap, document.createTextNode('Word wrap'));
+      controls.append(sizeLabel, wrapLabel);
+      panel.append(controls);
+    }
 
     // ---------------------------------------------------------------- hooks
 
@@ -50,7 +90,7 @@
         busy = null;
         result = msg;
         animate = !!msg.trace;
-        api.setOverlay(!!msg.trace);
+        api.setOverlay(!!msg.trace, msg.trace ? Object.keys(msg.trace.nodes) : null);
         if (msg.trace) api.select(null);
         decorate();
         renderPanel();
@@ -278,6 +318,7 @@
       close.addEventListener('click', clear);
       h.append(title, close);
       panel.append(h);
+      textSettings();
     }
 
     function sub(text) {

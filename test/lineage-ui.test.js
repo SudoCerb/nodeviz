@@ -10,7 +10,7 @@ function canvas(edges, upstreamDepth = null, downstreamDepth = null) {
   const element = () => ({ hidden: false, style: {}, classList: { toggle() {} } });
   const ctx = {
     view: { edges: edges.map(([from, to]) => ({ from, to })), nodes: [...ids].map((id, i) => ({ id, x: i * 3000, y: i * 900 })) },
-    upstreamDepth, downstreamDepth, selected: 'root', hideUnrelated: true, overlayActive: false,
+    upstreamDepth, downstreamDepth, selected: 'root', hideUnrelated: true, overlayActive: false, overlayIds: null,
     query: '', activeId: null, visibleIds: null, rearrangeOnUpdate: true, layoutKey: null, layoutApplied: false,
     edgeLayer: { setAttribute() {} }, MAX_GLOW_EDGES: 400,
     window: { NodeVizLayout: require('../src/layout') }, updateEdges() {}, fit() {},
@@ -26,6 +26,27 @@ function canvas(edges, upstreamDepth = null, downstreamDepth = null) {
   return ctx;
 }
 const sorted = set => [...set].sort();
+test('column traces filter and lay out trace nodes, retain boundaries, and restore the canvas', () => {
+  const c = canvas([['a', 'root'], ['root', 'stop'], ['unrelated', 'other']], 0, 0);
+  c.overlayActive = true;
+  c.overlayIds = new Set(['a', 'root', 'stop']);
+  c.selected = null;
+  c.applyHighlight();
+  assert.deepEqual(sorted(c.visibleIds), ['a', 'root', 'stop']);
+  assert.equal(c.nodeEls.get('unrelated').hidden, true);
+  assert.equal(c.nodeEls.get('stop').hidden, false);
+  assert.equal(c.edgeEls[2].g.style.display, 'none');
+  assert.equal(c.layoutApplied, true);
+  c.hideUnrelated = false;
+  c.applyHighlight();
+  assert.equal(c.visibleIds, null);
+  c.hideUnrelated = true;
+  c.overlayActive = false;
+  c.overlayIds = null;
+  c.applyHighlight();
+  assert.equal(c.visibleIds, null);
+  assert.ok([...c.nodeEls.values()].every(n => !n.hidden));
+});
 test('independent upstream and downstream limits, including zero and unlimited', () => {
   const c = canvas([['a', 'b'], ['b', 'root'], ['root', 'c'], ['c', 'd']], 1, 2);
   assert.deepEqual(sorted(c.lineage('root').up), ['b']);
